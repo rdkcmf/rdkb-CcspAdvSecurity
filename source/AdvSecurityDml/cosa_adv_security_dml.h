@@ -306,4 +306,80 @@ PrivacyProtection_Rollback
     (
         ANSC_HANDLE                 hInsContext
     );
+
+/***********************************************************************
+
+ APIs for Object:
+
+    X_RDKCENTRAL-COM_RabidFramework.
+
+    *  RabidFramework_GetParamUlongValue
+    *  RabidFramework_SetParamUlongValue
+
+***********************************************************************/
+BOOL
+RabidFramework_GetParamUlongValue
+    (
+        ANSC_HANDLE                 hInsContext,
+        char*                       ParamName,
+        ULONG*                      pUlong
+    );
+
+BOOL
+RabidFramework_SetParamUlongValue
+    (
+        ANSC_HANDLE                 hInsContext,
+        char*                       ParamName,
+        ULONG                       uValue
+    );
+/***********************************************************************
+
+ APIs for Object:
+
+    X_RDKCENTRAL-COM_AdvancedParentalControl.
+
+    *  AdvancedParentalControl_GetParamBoolValue
+    *  AdvancedParentalControl_SetParamBoolValue
+
+***********************************************************************/
+BOOL
+AdvancedParentalControl_RFC_GetParamBoolValue
+    (
+        ANSC_HANDLE                 hInsContext,
+        char*                       ParamName,
+        BOOL*                       pBool
+    );
+
+BOOL
+AdvancedParentalControl_RFC_SetParamBoolValue
+    (
+        ANSC_HANDLE                 hInsContext,
+        char*                       ParamName,
+        BOOL                        bValue
+    );
+/***********************************************************************
+
+ APIs for Object:
+
+    X_RDKCENTRAL-COM_PrivacyProtection.
+
+    *  PrivacyProtection_GetParamBoolValue
+    *  PrivacyProtection_SetParamBoolValue
+
+***********************************************************************/
+BOOL
+PrivacyProtection_RFC_GetParamBoolValue
+    (
+        ANSC_HANDLE                 hInsContext,
+        char*                       ParamName,
+        BOOL*                       pBool
+    );
+
+BOOL
+PrivacyProtection_RFC_SetParamBoolValue
+    (
+        ANSC_HANDLE                 hInsContext,
+        char*                       ParamName,
+        BOOL                        bValue
+    );
 #endif //_COSA_ADV_SECURITY_DML_H

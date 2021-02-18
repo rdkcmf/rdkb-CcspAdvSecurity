@@ -50,8 +50,6 @@
 #endif
 
 #define ADVSEC_WAIT_FOR_TIMEOUT (60 * 60)
-#define ADVSEC_SYSEVENT_PARENTAL_CONTROL_RFC_EVENT "adv_parental_control"
-#define ADVSEC_SYSEVENT_PRIVACY_PROTECTION_RFC_EVENT "privacy_protection"
 #define ADVSEC_SYSEVENT_RABID_NONROOT_RFC_EVENT "NonRootSupport"
 #define ADVSEC_SYSEVENT_BRIDGE_MODE_EVENT "bridge_mode"
 #define ADVSEC_SYSEVENT_CLOUD_HOST_IP "advsec_host_ip"
@@ -100,6 +98,13 @@ static char *g_AdvSecurityLookupTimeout = "Advsecurity_LookupTimeout";
 static char *g_AdvParentalControl = "Adv_PCActivate";
 static char *g_PrivacyProtection = "Adv_PPActivate";
 
+static char *g_RabidMemoryLimit = "Advsecurity_RabidMemoryLimit";
+static char *g_RabidMacCacheSize = "Advsecurity_RabidMacCacheSize";
+static char *g_RabidDNSCacheSize = "Advsecurity_RabidDNSCacheSize";
+
+static char *g_PrivacyProtectionEnabled = "Adv_PrivProtRFCEnable";
+static char *g_AdvParentalControlEnabled = "Adv_PCRFCEnable";
+
 static pthread_mutex_t logMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t logCond = PTHREAD_COND_INITIALIZER;
 
@@ -107,8 +112,6 @@ void advsec_handle_sysevent_async(void);
 static void advsec_start_logger_thread(void);
 static BOOL WaitForLoggerTimeout(ULONG period);
 enum advSysEvent_e{
-    SYSEVENT_PARENTAL_CONTROL_RFC_EVENT,
-    SYSEVENT_PRIVACY_PROTECTION_RFC_EVENT,
     SYSEVENT_BRIDGE_MODE_EVENT,
     SYSEVENT_CLOUD_HOST_IP,
     SYSEVENT_RABID_NONROOT_RFC_EVENT,
@@ -122,8 +125,6 @@ typedef struct advSysEvent_pair{
 } ADV_SYSEVENT_PAIR;
 
 ADV_SYSEVENT_PAIR advSysEvent_type_table[] = {
-  { ADVSEC_SYSEVENT_PARENTAL_CONTROL_RFC_EVENT,     SYSEVENT_PARENTAL_CONTROL_RFC_EVENT   },
-  { ADVSEC_SYSEVENT_PRIVACY_PROTECTION_RFC_EVENT,   SYSEVENT_PRIVACY_PROTECTION_RFC_EVENT },
   { ADVSEC_SYSEVENT_BRIDGE_MODE_EVENT,              SYSEVENT_BRIDGE_MODE_EVENT            },
   { ADVSEC_SYSEVENT_CLOUD_HOST_IP,                  SYSEVENT_CLOUD_HOST_IP                },
   { ADVSEC_SYSEVENT_RABID_NONROOT_RFC_EVENT,        SYSEVENT_RABID_NONROOT_RFC_EVENT      }
@@ -292,6 +293,32 @@ CosaSecurityCreate
         return  (ANSC_HANDLE)NULL;
     }
 
+    pMyObject->pRabid = (PCOSA_DATAMODEL_RABID)AnscAllocateMemory(sizeof(COSA_DATAMODEL_RABID));
+    if ( !pMyObject->pRabid )
+    {
+        CcspTraceInfo(("%s exit ERROR \n", __FUNCTION__));
+        AnscFreeMemory((ANSC_HANDLE)pMyObject);
+        return  (ANSC_HANDLE)NULL;
+    }
+
+    pMyObject->pAdvPC_RFC = (PCOSA_DATAMODEL_ADVPC_RFC)AnscAllocateMemory(sizeof(COSA_DATAMODEL_ADVPC_RFC));
+
+    if ( !pMyObject->pAdvPC_RFC )
+    {
+        CcspTraceInfo(("%s exit ERROR \n", __FUNCTION__));
+        AnscFreeMemory((ANSC_HANDLE)pMyObject);
+        return  (ANSC_HANDLE)NULL;
+    }
+
+    pMyObject->pPrivProt_RFC = (PCOSA_DATAMODEL_PRIVACYPROTECTION_RFC)AnscAllocateMemory(sizeof(COSA_DATAMODEL_PRIVACYPROTECTION_RFC));
+
+    if ( !pMyObject->pPrivProt_RFC )
+    {
+        CcspTraceInfo(("%s exit ERROR \n", __FUNCTION__));
+        AnscFreeMemory((ANSC_HANDLE)pMyObject);
+        return  (ANSC_HANDLE)NULL;
+    }
+
     if (syscfg_init() != 0) {
         CcspTraceError(("%s: syscfg_init error", __FUNCTION__));
     	AnscFreeMemory((ANSC_HANDLE)pMyObject);
@@ -315,6 +342,11 @@ CosaSecurityInitialize
     ULONG                   ValueSF = 0;
     ULONG                   ValueAPC = 0;
     ULONG                   ValuePP = 0;
+    ULONG                   ValueAPC_RFC = 0;
+    ULONG                   ValuePP_RFC = 0;
+    ULONG                   ValueRML = 0;
+    ULONG                   ValueRMCS = 0;
+    ULONG                   ValueRDCS = 0;
 
      /* Coverity Fix CID:78774,78899  OVERRUN*/
     char modelName[BUFFERSIZE_MAX]={'\0'};
@@ -499,12 +531,22 @@ CosaSecurityInitialize
     CosaGetSysCfgUlong(g_AdvSecuritySFEnabled, &ValueSF);
     CosaGetSysCfgUlong(g_AdvParentalControl, &ValueAPC);
     CosaGetSysCfgUlong(g_PrivacyProtection, &ValuePP);
+    CosaGetSysCfgUlong(g_AdvParentalControlEnabled, &ValueAPC_RFC);
+    CosaGetSysCfgUlong(g_PrivacyProtectionEnabled, &ValuePP_RFC);
+    CosaGetSysCfgUlong(g_RabidMemoryLimit, &ValueRML);
+    CosaGetSysCfgUlong(g_RabidMacCacheSize, &ValueRMCS);
+    CosaGetSysCfgUlong(g_RabidDNSCacheSize, &ValueRDCS);
 
     g_pAdvSecAgent->bEnable = Value;
     g_pAdvSecAgent->pAdvSec->pSafeBrows->bEnable = ValueSB;
     g_pAdvSecAgent->pAdvSec->pSoftFlowd->bEnable = ValueSF;
     g_pAdvSecAgent->pAdvPC->bEnable = ValueAPC;
     g_pAdvSecAgent->pPrivProt->bEnable = ValuePP;
+    g_pAdvSecAgent->pAdvPC_RFC->bEnable = ValueAPC_RFC;
+    g_pAdvSecAgent->pPrivProt_RFC->bEnable = ValuePP_RFC;
+    g_pAdvSecAgent->pRabid->uMemoryLimit = ValueRML;
+    g_pAdvSecAgent->pRabid->uMacCacheSize = ValueRMCS;
+    g_pAdvSecAgent->pRabid->uDNSCacheSize = ValueRDCS;
 
     if(Value == 1)
     {
@@ -1244,7 +1286,7 @@ ULONG CosaAdvSecGetLookupTimeoutExceededCount()
 static BOOL AdvsecSysEventHandlerStarted=FALSE;
 static int sysevent_fd = 0;
 static token_t sysEtoken;
-static async_id_t async_id[6];
+static async_id_t async_id[3];
 
 enum {SYS_EVENT_ERROR=-1, SYS_EVENT_OK, SYS_EVENT_TIMEOUT, SYS_EVENT_HANDLE_EXIT, SYS_EVENT_RECEIVED=0x10};
 
@@ -1263,37 +1305,23 @@ int advsec_sysevent_init(void)
 
     /*you can register the event as you want*/
 
-    //register event
-    sysevent_set_options(sysevent_fd, sysEtoken, ADVSEC_SYSEVENT_PARENTAL_CONTROL_RFC_EVENT, TUPLE_FLAG_EVENT);
-    rc = sysevent_setnotification(sysevent_fd, sysEtoken, ADVSEC_SYSEVENT_PARENTAL_CONTROL_RFC_EVENT, &async_id[0]);
-    if (rc) {
-       return(SYS_EVENT_ERROR);
-    }
-
-    //register privacy event
-    sysevent_set_options(sysevent_fd, sysEtoken, ADVSEC_SYSEVENT_PRIVACY_PROTECTION_RFC_EVENT, TUPLE_FLAG_EVENT);
-    rc = sysevent_setnotification(sysevent_fd, sysEtoken, ADVSEC_SYSEVENT_PRIVACY_PROTECTION_RFC_EVENT, &async_id[1]);
-    if (rc) {
-       return(SYS_EVENT_ERROR);
-    }
-
     //register bridge mode event
     sysevent_set_options(sysevent_fd, sysEtoken, ADVSEC_SYSEVENT_BRIDGE_MODE_EVENT, TUPLE_FLAG_EVENT);
-    rc = sysevent_setnotification(sysevent_fd, sysEtoken, ADVSEC_SYSEVENT_BRIDGE_MODE_EVENT, &async_id[2]);
+    rc = sysevent_setnotification(sysevent_fd, sysEtoken, ADVSEC_SYSEVENT_BRIDGE_MODE_EVENT, &async_id[0]);
     if (rc) {
        return(SYS_EVENT_ERROR);
     }
 
     //register host to IP address
     sysevent_set_options(sysevent_fd, sysEtoken, ADVSEC_SYSEVENT_CLOUD_HOST_IP, TUPLE_FLAG_EVENT);
-    rc = sysevent_setnotification(sysevent_fd, sysEtoken, ADVSEC_SYSEVENT_CLOUD_HOST_IP, &async_id[3]);
+    rc = sysevent_setnotification(sysevent_fd, sysEtoken, ADVSEC_SYSEVENT_CLOUD_HOST_IP, &async_id[1]);
     if (rc) {
        return(SYS_EVENT_ERROR);
     }
 
     //register rabid non-root event
     sysevent_set_options(sysevent_fd, sysEtoken, ADVSEC_SYSEVENT_RABID_NONROOT_RFC_EVENT, TUPLE_FLAG_EVENT);
-    rc = sysevent_setnotification(sysevent_fd, sysEtoken, ADVSEC_SYSEVENT_RABID_NONROOT_RFC_EVENT, &async_id[4]);
+    rc = sysevent_setnotification(sysevent_fd, sysEtoken, ADVSEC_SYSEVENT_RABID_NONROOT_RFC_EVENT, &async_id[2]);
     if (rc) {
        return(SYS_EVENT_ERROR);
     }
@@ -1315,41 +1343,7 @@ void advsec_handle_sysevent_notification(char *event, char *val)
 
     if(get_advSysEvent_type_from_name(event, &type))
     {
-        if(type == SYSEVENT_PARENTAL_CONTROL_RFC_EVENT)
-        {
-            if(g_pAdvSecAgent->pAdvPC->bEnable)
-            {
-                if((val[0] == '0') && (val[1] == '\0'))
-                {
-                    CcspTraceWarning(("CcspAdvSecurity: Received Adv parental control RFC disable\n"));
-                    CosaStopAdvParentalControl(FALSE);
-                }
-
-                if((val[0] == '1') && (val[1] == '\0'))
-                {
-                    CcspTraceWarning(("CcspAdvSecurity: Received Adv parental control RFC enable\n"));
-                    CosaStartAdvParentalControl(FALSE);
-                }
-            }
-        }
-        else if(type == SYSEVENT_PRIVACY_PROTECTION_RFC_EVENT)
-        {
-            if(g_pAdvSecAgent->pPrivProt->bEnable)
-            {
-               if((val[0] == '0') && (val[1] == '\0'))
-               {
-                   CcspTraceWarning(("CcspAdvSecurity: Received Privacy Protection RFC disable\n"));
-                   CosaStopPrivacyProtection(FALSE);
-               }
-
-               if((val[0] == '1') && (val[1] == '\0'))
-               {
-                   CcspTraceWarning(("CcspAdvSecurity: Received Privacy Protection RFC enable\n"));
-                   CosaStartPrivacyProtection(FALSE);
-               }
-            }
-        }
-        else if(type == SYSEVENT_BRIDGE_MODE_EVENT)
+        if(type == SYSEVENT_BRIDGE_MODE_EVENT)
         {
             char cmd[COMMAND_MAX] = {0};
             errno_t rc = -1;
@@ -1466,8 +1460,6 @@ int advsec_sysvent_close(void)
     sysevent_rmnotification(sysevent_fd, sysEtoken, async_id[0]);
     sysevent_rmnotification(sysevent_fd, sysEtoken, async_id[1]);
     sysevent_rmnotification(sysevent_fd, sysEtoken, async_id[2]);
-    sysevent_rmnotification(sysevent_fd, sysEtoken, async_id[3]);
-    sysevent_rmnotification(sysevent_fd, sysEtoken, async_id[4]);
 
     /* close this session with syseventd */
     sysevent_close(sysevent_fd, sysEtoken);
@@ -1573,4 +1565,144 @@ static BOOL WaitForLoggerTimeout(ULONG period)
 
     pthread_mutex_unlock(&logMutex);
     return ret;
+}
+
+
+ANSC_STATUS CosaRabidSetMemoryLimit(ANSC_HANDLE hThisObject, ULONG uValue)
+{
+    UNREFERENCED_PARAMETER(hThisObject);
+    ANSC_STATUS                 returnStatus = ANSC_STATUS_SUCCESS;
+
+    returnStatus = CosaSetSysCfgUlong(g_RabidMemoryLimit, uValue);
+    if ( returnStatus == ANSC_STATUS_SUCCESS )
+    {
+        g_pAdvSecAgent->pRabid->uMemoryLimit = uValue;
+    }
+    return returnStatus;
+}
+
+ANSC_STATUS CosaRabidSetMacCacheSize(ANSC_HANDLE hThisObject, ULONG uValue)
+{
+    UNREFERENCED_PARAMETER(hThisObject);
+    ANSC_STATUS                 returnStatus = ANSC_STATUS_SUCCESS;
+
+    returnStatus = CosaSetSysCfgUlong(g_RabidMacCacheSize, uValue);
+    if ( returnStatus == ANSC_STATUS_SUCCESS )
+    {
+        g_pAdvSecAgent->pRabid->uMacCacheSize = uValue;
+    }
+    return returnStatus;
+}
+
+ANSC_STATUS CosaRabidSetDNSCacheSize(ANSC_HANDLE hThisObject, ULONG uValue)
+{
+    UNREFERENCED_PARAMETER(hThisObject);
+    ANSC_STATUS                 returnStatus = ANSC_STATUS_SUCCESS;
+
+    returnStatus = CosaSetSysCfgUlong(g_RabidDNSCacheSize, uValue);
+    if ( returnStatus == ANSC_STATUS_SUCCESS )
+    {
+        g_pAdvSecAgent->pRabid->uDNSCacheSize = uValue;
+    }
+    return returnStatus;
+}
+
+ANSC_STATUS
+CosaAdvPCInit
+    (
+             ANSC_HANDLE                 hThisObject
+    )
+{
+    UNREFERENCED_PARAMETER(hThisObject);
+
+    if (CosaSetSysCfgUlong (g_AdvParentalControlEnabled, 1))
+    {
+        CcspTraceWarning (("%s: syscfg_set failure.", __FUNCTION__));
+        return ANSC_STATUS_FAILURE;
+    }
+
+    g_pAdvSecAgent->pAdvPC_RFC->bEnable = TRUE;
+
+    if(g_pAdvSecAgent->pAdvPC->bEnable)
+    {
+        CosaStartAdvParentalControl(FALSE);
+    }
+
+    CcspTraceWarning (("AdvPC_RFCEnable:TRUE\n"));
+    return ANSC_STATUS_SUCCESS;
+}
+
+ANSC_STATUS
+CosaAdvPCDeInit
+    (
+             ANSC_HANDLE                 hThisObject
+    )
+{
+    UNREFERENCED_PARAMETER(hThisObject);
+
+    if (CosaSetSysCfgUlong (g_AdvParentalControlEnabled, 0))
+    {
+        CcspTraceWarning (("%s: syscfg_set failure.", __FUNCTION__));
+        return ANSC_STATUS_FAILURE;
+    }
+
+    g_pAdvSecAgent->pAdvPC_RFC->bEnable = FALSE;
+
+    if (g_pAdvSecAgent->pAdvPC->bEnable)
+    {
+        CosaStopAdvParentalControl(FALSE);
+    }
+
+    CcspTraceWarning (("AdvPC_RFCEnable:FALSE\n"));
+    return ANSC_STATUS_SUCCESS;
+}
+
+ANSC_STATUS
+CosaPrivacyProtectionInit
+    (
+             ANSC_HANDLE                 hThisObject
+    )
+{
+    UNREFERENCED_PARAMETER(hThisObject);
+
+    if (CosaSetSysCfgUlong (g_PrivacyProtectionEnabled, 1))
+    {
+        CcspTraceWarning (("%s: syscfg_set failure.", __FUNCTION__));
+        return ANSC_STATUS_FAILURE;
+    }
+
+    g_pAdvSecAgent->pPrivProt_RFC->bEnable = TRUE;
+
+    if (g_pAdvSecAgent->pPrivProt->bEnable)
+    {
+        CosaStartPrivacyProtection(FALSE);
+    }
+
+    CcspTraceWarning (("AdTrackerBlockingRFCEnable:TRUE\n"));
+    return ANSC_STATUS_SUCCESS;
+}
+
+ANSC_STATUS
+CosaPrivacyProtectionDeInit
+    (
+             ANSC_HANDLE                 hThisObject
+    )
+{
+    UNREFERENCED_PARAMETER(hThisObject);
+
+    if (CosaSetSysCfgUlong (g_PrivacyProtectionEnabled, 0))
+    {
+        CcspTraceWarning (("%s: syscfg_set failure.", __FUNCTION__));
+        return ANSC_STATUS_FAILURE;
+    }
+
+    g_pAdvSecAgent->pPrivProt_RFC->bEnable = FALSE;
+
+    if (g_pAdvSecAgent->pPrivProt->bEnable)
+    {
+        CosaStopPrivacyProtection(FALSE);
+    }
+
+    CcspTraceWarning (("AdTrackerBlockingRFCEnable:FALSE\n"));
+    return ANSC_STATUS_SUCCESS;
 }

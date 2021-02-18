@@ -64,7 +64,7 @@ check_status()
         print_telemetry_log ${ADV_PARENTAL_CONTROL_DEACTIVATED_LOG} ${ADVSEC_AGENT_LOG_PATH}
     fi
 
-    if [ ! -e $PRIVACY_PROTECTION_RFC_DISABLED_PATH ]; then
+    if [ "$PRIVACY_PROTECTION_RFC_ENABLED" = "1" ]; then
         print_telemetry_log ${PRIVACY_PROTECTION_RFC_ENABLED_LOG} ${ADVSEC_AGENT_LOG_PATH}
         if [ "${PRIVACY_PROTECTION_ENABLED}" = "1" ]; then
             print_telemetry_log ${PRIVACY_PROTECTION_ACTIVATED_LOG} ${ADVSEC_AGENT_LOG_PATH}

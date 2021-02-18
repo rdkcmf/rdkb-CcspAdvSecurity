@@ -70,6 +70,15 @@ COSA_Init
     pPlugInfo->RegisterFunction(pPlugInfo->hContext, "Softflowd_Validate",  Softflowd_Validate);
     pPlugInfo->RegisterFunction(pPlugInfo->hContext, "Softflowd_Commit",  Softflowd_Commit);
     pPlugInfo->RegisterFunction(pPlugInfo->hContext, "Softflowd_Rollback",  Softflowd_Rollback);
+
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "RabidFramework_GetParamUlongValue", RabidFramework_GetParamUlongValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "RabidFramework_SetParamUlongValue", RabidFramework_SetParamUlongValue);
+
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "AdvancedParentalControl_RFC_GetParamBoolValue", AdvancedParentalControl_RFC_GetParamBoolValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "AdvancedParentalControl_RFC_SetParamBoolValue", AdvancedParentalControl_RFC_SetParamBoolValue);
+
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "PrivacyProtection_RFC_GetParamBoolValue", PrivacyProtection_RFC_GetParamBoolValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "PrivacyProtection_RFC_SetParamBoolValue", PrivacyProtection_RFC_SetParamBoolValue);
     
     /* Create Object for Settings */
     g_pAdvSecAgent = (PCOSA_DATAMODEL_AGENT)CosaSecurityCreate();

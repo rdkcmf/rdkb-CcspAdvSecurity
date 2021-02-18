@@ -28,6 +28,10 @@
 #include "base64.h"
 #include "safec_lib_common.h"
 
+#define MIN_RABID_MEMORY_LIMIT 5
+#define MAX_RABID_MACCACHE_SIZE 32768
+#define MAX_RABID_DNSCACHE_SIZE 32768
+
 extern COSA_DATAMODEL_AGENT* g_pAdvSecAgent;
 
 static int urlStartsWith(const char *haystack, const char *needle)
@@ -1871,4 +1875,427 @@ PrivacyProtection_Rollback
 {
     UNREFERENCED_PARAMETER(hInsContext);
     return 0;
+}
+/***********************************************************************
+
+ APIs for Object:
+
+    X_RDKCENTRAL-COM_RFC.Feature.RabidFramework.
+
+    *  RabidFramework_GetParamUlongValue
+    *  RabidFramework_SetParamUlongValue
+
+***********************************************************************/
+
+/**********************************************************************
+
+    caller:     owner of this object
+
+    prototype:
+
+        BOOL
+        RabidFramework_GetParamUlongValue
+            (
+                ANSC_HANDLE                 hInsContext,
+                char*                       ParamName,
+                ULONG*                      pUlong
+            );
+
+    description:
+
+        This function is called to retrieve unsigned long parameter value;
+
+    argument:   ANSC_HANDLE                 hInsContext,
+                The instance handle;
+
+                char*                       ParamName,
+                The parameter name;
+
+                ULONG*                       pUlong
+                The buffer of returned unsigned long value;
+
+    return:     TRUE if succeeded.
+
+**********************************************************************/
+BOOL
+RabidFramework_GetParamUlongValue
+    (
+        ANSC_HANDLE                 hInsContext,
+        char*                       ParamName,
+        ULONG*                      pUlong
+    )
+{
+    UNREFERENCED_PARAMETER(hInsContext);
+    /* check the parameter name and return the corresponding value */
+
+    if( AnscEqualString(ParamName, "MemoryLimit", TRUE))
+    {
+        *pUlong = g_pAdvSecAgent->pRabid->uMemoryLimit;
+        return TRUE;
+    }
+    if( AnscEqualString(ParamName, "MacCacheSize", TRUE))
+    {
+        *pUlong = g_pAdvSecAgent->pRabid->uMacCacheSize;
+        return TRUE;
+    }
+    if( AnscEqualString(ParamName, "DNSCacheSize", TRUE))
+    {
+        *pUlong = g_pAdvSecAgent->pRabid->uDNSCacheSize;
+        return TRUE;
+    }
+
+    CcspTraceWarning(("Unsupported parameter '%s'\n", ParamName));
+    return FALSE;
+}
+
+/**********************************************************************
+
+    caller:     owner of this object
+
+    prototype:
+
+        BOOL
+        RabidFramework_SetParamUlongValue
+            (
+                ANSC_HANDLE                 hInsContext,
+                char*                       ParamName,
+                ULONG                       uValue
+            );
+
+    description:
+
+        This function is called to set unsigned long parameter value;
+
+    argument:   ANSC_HANDLE                 hInsContext,
+                The instance handle;
+
+                char*                       ParamName,
+                The parameter name;
+
+                ULONG                        uValue
+                The updated BOOL value;
+
+    return:     TRUE if succeeded.
+
+**********************************************************************/
+BOOL
+RabidFramework_SetParamUlongValue
+    (
+        ANSC_HANDLE                 hInsContext,
+        char*                       ParamName,
+        ULONG                       uValue
+    )
+{
+    UNREFERENCED_PARAMETER(hInsContext);
+    /* check the parameter name and return the corresponding value */
+
+    ANSC_STATUS  returnStatus = ANSC_STATUS_SUCCESS;
+
+    if( AnscEqualString(ParamName, "MemoryLimit", TRUE))
+    {
+        if(uValue == g_pAdvSecAgent->pRabid->uMemoryLimit)
+                return TRUE;
+
+        if (uValue <= MIN_RABID_MEMORY_LIMIT)
+                return FALSE;
+
+        returnStatus = CosaRabidSetMemoryLimit(g_pAdvSecAgent->pRabid, uValue);
+
+        if ( returnStatus != ANSC_STATUS_SUCCESS )
+        {
+            CcspTraceInfo(("%s EXIT Error\n", __FUNCTION__));
+            return  returnStatus;
+        }
+
+        return TRUE;
+    }
+    if( AnscEqualString(ParamName, "MacCacheSize", TRUE))
+    {
+        if(uValue == g_pAdvSecAgent->pRabid->uMacCacheSize)
+                return TRUE;
+
+        if (uValue > MAX_RABID_MACCACHE_SIZE)
+                return FALSE;
+
+        returnStatus = CosaRabidSetMacCacheSize(g_pAdvSecAgent->pRabid, uValue);
+
+        if ( returnStatus != ANSC_STATUS_SUCCESS )
+        {
+            CcspTraceInfo(("%s EXIT Error\n", __FUNCTION__));
+            return  returnStatus;
+        }
+
+        return TRUE;
+    }
+    if( AnscEqualString(ParamName, "DNSCacheSize", TRUE))
+    {
+        if(uValue == g_pAdvSecAgent->pRabid->uDNSCacheSize)
+                return TRUE;
+
+        if (uValue > MAX_RABID_DNSCACHE_SIZE)
+                return FALSE;
+
+        returnStatus = CosaRabidSetDNSCacheSize(g_pAdvSecAgent->pRabid, uValue);
+
+        if ( returnStatus != ANSC_STATUS_SUCCESS )
+        {
+            CcspTraceInfo(("%s EXIT Error\n", __FUNCTION__));
+            return  returnStatus;
+        }
+
+        return TRUE;
+    }
+
+    CcspTraceWarning(("Unsupported parameter '%s'\n", ParamName));
+    return FALSE;
+}
+/***********************************************************************
+
+ APIs for Object:
+
+    DeviceInfo.X_RDKCENTRAL-COM_RFC.Feature.AdvancedParentalControl.
+
+    *  AdvancedParentalControl_RFC_GetParamBoolValue
+    *  AdvancedParentalControl_RFC_SetParamBoolValue
+
+***********************************************************************/
+/**********************************************************************  
+
+    caller:     owner of this object 
+
+    prototype: 
+
+        BOOL
+        AdvancedParentalControl_RFC_GetParamBoolValue
+            (
+                ANSC_HANDLE                 hInsContext,
+                char*                       ParamName,
+                BOOL*                       pBool
+            );
+
+    description:
+
+        This function is called to retrieve Boolean parameter value;
+
+    argument:   ANSC_HANDLE                 hInsContext,
+                The instance handle;
+
+                char*                       ParamName,
+                The parameter name;
+
+                BOOL*                       pBool
+                The buffer of returned boolean value;
+
+    return:     TRUE if succeeded.
+
+**********************************************************************/
+BOOL
+AdvancedParentalControl_RFC_GetParamBoolValue
+    (
+        ANSC_HANDLE                 hInsContext,
+        char*                       ParamName,
+        BOOL*                       pBool
+    )
+{
+    UNREFERENCED_PARAMETER(hInsContext);
+    /* check the parameter name and return the corresponding value */
+
+    if( AnscEqualString(ParamName, "Enable", TRUE))
+    {
+        *pBool = g_pAdvSecAgent->pAdvPC_RFC->bEnable;
+        return TRUE;
+    }
+    CcspTraceWarning(("Unsupported parameter '%s'\n", ParamName));
+    return FALSE;
+}
+
+
+/**********************************************************************
+
+    caller:     owner of this object
+
+    prototype:
+
+        BOOL
+        AdvancedParentalControl_RFC_SetParamBoolValue
+            (
+                ANSC_HANDLE                 hInsContext,
+                char*                       ParamName,
+                BOOL                        bValue
+            );
+
+    description:
+
+        This function is called to set BOOL parameter value;
+
+    argument:   ANSC_HANDLE                 hInsContext,
+                The instance handle;
+
+                char*                       ParamName,
+                The parameter name;
+
+                BOOL                        bValue
+                The updated BOOL value;
+
+    return:     TRUE if succeeded.
+
+**********************************************************************/
+BOOL
+AdvancedParentalControl_RFC_SetParamBoolValue
+    (
+        ANSC_HANDLE                 hInsContext,
+        char*                       ParamName,
+        BOOL                        bValue
+    )
+{
+    UNREFERENCED_PARAMETER(hInsContext);
+    /* check the parameter name and return the corresponding value */
+
+    ANSC_STATUS  returnStatus = ANSC_STATUS_SUCCESS;
+
+    if( AnscEqualString(ParamName, "Enable", TRUE))
+    {
+        if(bValue == g_pAdvSecAgent->pAdvPC_RFC->bEnable)
+                return TRUE;
+        if( bValue )
+                returnStatus = CosaAdvPCInit(g_pAdvSecAgent->pAdvPC_RFC);
+        else
+                returnStatus = CosaAdvPCDeInit(g_pAdvSecAgent->pAdvPC_RFC);
+
+        if ( returnStatus != ANSC_STATUS_SUCCESS )
+        {
+            CcspTraceInfo(("%s EXIT Error\n", __FUNCTION__));
+            return  returnStatus;
+        }
+
+        return TRUE;
+    }
+
+    CcspTraceWarning(("Unsupported parameter '%s'\n", ParamName));
+    return FALSE;
+}
+/***********************************************************************
+
+ APIs for Object:
+
+    X_RDKCENTRAL-COM_RFC.Feature.PrivacyProtection.
+
+    *  PrivacyProtection_RFC_GetParamBoolValue
+    *  PrivacyProtection_RFC_SetParamBoolValue
+
+***********************************************************************/
+/**********************************************************************  
+
+    caller:     owner of this object 
+
+    prototype: 
+
+        BOOL
+        PrivacyProtection_RFC_GetParamBoolValue
+            (
+                ANSC_HANDLE                 hInsContext,
+                char*                       ParamName,
+                BOOL*                       pBool
+            );
+
+    description:
+
+        This function is called to retrieve Boolean parameter value;
+
+    argument:   ANSC_HANDLE                 hInsContext,
+                The instance handle;
+
+                char*                       ParamName,
+                The parameter name;
+
+                BOOL*                       pBool
+                The buffer of returned boolean value;
+
+    return:     TRUE if succeeded.
+
+**********************************************************************/
+BOOL
+PrivacyProtection_RFC_GetParamBoolValue
+    (
+        ANSC_HANDLE                 hInsContext,
+        char*                       ParamName,
+        BOOL*                       pBool
+    )
+{
+    UNREFERENCED_PARAMETER(hInsContext);
+    /* check the parameter name and return the corresponding value */
+
+    if( AnscEqualString(ParamName, "Enable", TRUE))
+    {
+        *pBool = g_pAdvSecAgent->pPrivProt_RFC->bEnable;
+        return TRUE;
+    }
+    CcspTraceWarning(("Unsupported parameter '%s'\n", ParamName));
+    return FALSE;
+}
+
+
+/**********************************************************************
+
+    caller:     owner of this object
+
+    prototype:
+
+        BOOL
+        PrivacyProtection_RFC_SetParamBoolValue
+            (
+                ANSC_HANDLE                 hInsContext,
+                char*                       ParamName,
+                BOOL                        bValue
+            );
+
+    description:
+
+        This function is called to set BOOL parameter value;
+
+    argument:   ANSC_HANDLE                 hInsContext,
+                The instance handle;
+
+                char*                       ParamName,
+                The parameter name;
+
+                BOOL                        bValue
+                The updated BOOL value;
+
+    return:     TRUE if succeeded.
+
+**********************************************************************/
+BOOL
+PrivacyProtection_RFC_SetParamBoolValue
+    (
+        ANSC_HANDLE                 hInsContext,
+        char*                       ParamName,
+        BOOL                        bValue
+    )
+{
+    UNREFERENCED_PARAMETER(hInsContext);
+    /* check the parameter name and return the corresponding value */
+
+    ANSC_STATUS  returnStatus = ANSC_STATUS_SUCCESS;
+
+    if( AnscEqualString(ParamName, "Enable", TRUE))
+    {
+        if(bValue == g_pAdvSecAgent->pPrivProt_RFC->bEnable)
+                return TRUE;
+        if( bValue )
+                returnStatus = CosaPrivacyProtectionInit(g_pAdvSecAgent->pPrivProt_RFC);
+        else
+                returnStatus = CosaPrivacyProtectionDeInit(g_pAdvSecAgent->pPrivProt_RFC);
+
+        if ( returnStatus != ANSC_STATUS_SUCCESS )
+        {
+            CcspTraceInfo(("%s EXIT Error\n", __FUNCTION__));
+            return  returnStatus;
+        }
+
+        return TRUE;
+    }
+
+    CcspTraceWarning(("Unsupported parameter '%s'\n", ParamName));
+    return FALSE;
 }

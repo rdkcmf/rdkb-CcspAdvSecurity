@@ -74,11 +74,11 @@ then
         echo_t "ADV_SECURITY_SOFTFLOWD_DISABLE"
     fi
 
-    if [ "$ADV_PC_ENABLED" = "1" ] && [ ! -e ${ADV_PARENTAL_CONTROL_RFC_DISABLED_PATH} ]; then
+    if [ "$ADV_PC_ENABLED" = "1" ] && [ "$ADV_PC_RFC_ENABLED" = "1" ]; then
         advanced_parental_control_setup "-startAdvPC"
     fi
 
-    if [ "$PRIVACY_PROTECTION_ENABLED" = "1" ] && [ ! -e ${PRIVACY_PROTECTION_RFC_DISABLED_PATH} ]; then
+    if [ "$PRIVACY_PROTECTION_ENABLED" = "1" ] && [ "$PRIVACY_PROTECTION_RFC_ENABLED" = "1" ]; then
         privacy_protection_setup "-startPrivProt"
     fi
 
@@ -285,7 +285,7 @@ fi
 
 if [ "$1" = "-startAdvPC" ] || [ "$1" = "-stopAdvPC" ]
 then
-    if [ "$1" = "-startAdvPC" ] && [ -e ${ADV_PARENTAL_CONTROL_RFC_DISABLED_PATH} ]; then
+    if [ "$1" = "-startAdvPC" ] && [ "$ADV_PC_RFC_ENABLED" = "0" ]; then
         echo_t "Rabid cannot activate AdvParentalControl feature due to RFC is disabled" >> ${ADVSEC_AGENT_LOG_PATH}
     else
         advanced_parental_control_setup $1
@@ -296,7 +296,7 @@ fi
 
 if [ "$1" = "-startPrivProt" ] || [ "$1" = "-stopPrivProt" ]
 then
-    if [ "$1" = "-startPrivProt" ] && [ -e ${PRIVACY_PROTECTION_RFC_DISABLED_PATH} ]; then
+    if [ "$1" = "-startPrivProt" ] && [ "$PRIVACY_PROTECTION_RFC_ENABLED" = "0" ]; then
         echo_t "Rabid cannot activate PrivacyProtection feature due to RFC is disabled" >> ${ADVSEC_AGENT_LOG_PATH}
     else
         privacy_protection_setup $1
@@ -329,7 +329,7 @@ then
 
     if [ "${ADV_PC_ENABLED}" = "1" ]; then
         if [ ! -e ${ADV_PARENTAL_CONTROL_PATH} ]; then
-            if [ -e ${ADV_PARENTAL_CONTROL_RFC_DISABLED_PATH} ]; then
+            if [ "$ADV_PC_RFC_ENABLED" = "0" ]; then
                 echo_t "Rabid cannot activate AdvParentalControl feature due to RFC is disabled" >> ${ADVSEC_AGENT_LOG_PATH}
             else
                 advanced_parental_control_setup "-startAdvPC"
@@ -343,7 +343,7 @@ then
 
     if [ "${PRIVACY_PROTECTION_ENABLED}" = "1" ]; then
         if [ ! -e ${PRIVACY_PROTECTION_PATH} ]; then
-            if [ -e ${PRIVACY_PROTECTION_RFC_DISABLED_PATH} ]; then
+            if [ "$PRIVACY_PROTECTION_RFC_ENABLED" = "0" ]; then
                  echo_t "Rabid cannot activate PrivacyProtection feature due to RFC is disabled" >> ${ADVSEC_AGENT_LOG_PATH}
             else
                 privacy_protection_setup "-startPrivProt"

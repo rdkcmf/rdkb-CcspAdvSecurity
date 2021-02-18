@@ -41,10 +41,22 @@ _COSA_DATAMODEL_ADVPARENTALCONTROL {
 COSA_DATAMODEL_ADVPARENTALCONTROL, *PCOSA_DATAMODEL_ADVPARENTALCONTROL;
 
 typedef  struct
+_COSA_DATAMODEL_ADVPC_RFC {
+    BOOL            bEnable;
+}
+COSA_DATAMODEL_ADVPC_RFC,  *PCOSA_DATAMODEL_ADVPC_RFC;
+
+typedef  struct
 _COSA_DATAMODEL_PRIVACYPROTECTION {
     BOOL                                                bEnable;
 }
 COSA_DATAMODEL_PRIVACYPROTECTION, *PCOSA_DATAMODEL_PRIVACYPROTECTION;
+
+typedef  struct
+_COSA_DATAMODEL_PRIVACYPROTECTION_RFC {
+    BOOL            bEnable;
+}
+COSA_DATAMODEL_PRIVACYPROTECTION_RFC,  *PCOSA_DATAMODEL_PRIVACYPROTECTION_RFC;
 
 typedef  struct
 _COSA_DATAMODEL_AGENT_SOFTFLOWD {
@@ -58,6 +70,15 @@ _COSA_DATAMODEL_AGENT_SB {
     ULONG                                               ulLookupTimeout;
 }
 COSA_DATAMODEL_SB, *PCOSA_DATAMODEL_SB;
+
+typedef  struct
+_COSA_DATAMODEL_RABID
+{
+    ULONG                       uMemoryLimit;
+    ULONG                       uMacCacheSize;
+    ULONG                       uDNSCacheSize;
+}
+COSA_DATAMODEL_RABID,  *PCOSA_DATAMODEL_RABID;
 
 typedef  struct
 _COSA_DATAMODEL_AGENT_ADVSEC {
@@ -74,7 +95,10 @@ _COSA_DATAMODEL_AGENT
     PCOSA_DATAMODEL_ADVSEC      pAdvSec;
     ULONG                       ulLoggingPeriod;
     PCOSA_DATAMODEL_ADVPARENTALCONTROL pAdvPC;
+    PCOSA_DATAMODEL_ADVPC_RFC pAdvPC_RFC;
     PCOSA_DATAMODEL_PRIVACYPROTECTION pPrivProt;
+    PCOSA_DATAMODEL_PRIVACYPROTECTION_RFC pPrivProt_RFC;
+    PCOSA_DATAMODEL_RABID       pRabid;
     int         	iStatus;
     int             iState;
 }
@@ -187,13 +211,60 @@ CosaAdvSecStartFeatures
     (
         advsec_feature_type type
     );
+
 ANSC_STATUS
 CosaAdvSecStopFeatures
     (
         advsec_feature_type type
     );
+
 ANSC_STATUS
 CosaAdvSecDeInit
     (
+    );
+
+ANSC_STATUS
+CosaRabidSetMemoryLimit
+    (
+        ANSC_HANDLE hThisObject,
+        ULONG uValue
+    );
+
+ANSC_STATUS
+CosaRabidSetMacCacheSize
+    (
+        ANSC_HANDLE hThisObject,
+        ULONG uValue
+    );
+
+ANSC_STATUS
+CosaRabidSetDNSCacheSize
+    (
+        ANSC_HANDLE hThisObject,
+        ULONG uValue
+    );
+
+ANSC_STATUS
+CosaAdvPCInit
+    (
+        ANSC_HANDLE hThisObject
+    );
+
+ANSC_STATUS
+CosaAdvPCDeInit
+    (
+        ANSC_HANDLE hThisObject
+    );
+
+ANSC_STATUS
+CosaPrivacyProtectionInit
+    (
+        ANSC_HANDLE hThisObject
+    );
+
+ANSC_STATUS
+CosaPrivacyProtectionDeInit
+    (
+        ANSC_HANDLE hThisObject
     );
 #endif 

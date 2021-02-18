@@ -48,9 +48,7 @@ export ADVSEC_INITIALIZED=/tmp/advsec_initialized
 export ADVSEC_AGENT_SHUTDOWN=/tmp/advsec_agent_shutdown
 export ADVSEC_DF_ENABLED_PATH=/tmp/advsec_df_enabled
 export ADV_PARENTAL_CONTROL_PATH=/tmp/adv_parental_control
-export ADV_PARENTAL_CONTROL_RFC_DISABLED_PATH=/tmp/adv_pc_rfc_disabled
 export PRIVACY_PROTECTION_PATH=/tmp/adv_privacy_protection
-export PRIVACY_PROTECTION_RFC_DISABLED_PATH=/tmp/adv_priv_prot_rfc_disabled
 export ADVSEC_APPBLOCK_PATH=/tmp/advsec_appblocker_enabled
 export ADVSEC_AGENT_LOG_PATH=/rdklogs/logs/agent.txt
 export ADVSEC_LOOKUP_EXCEED_COUNT_FILE="/tmp/advsec_lkup_exceed_cnt"
@@ -68,6 +66,8 @@ export ADVSEC_SF_ENABLED=`syscfg get Advsecurity_Softflowd`
 export ADV_PC_ENABLED=`syscfg get Adv_PCActivate`
 export PRIVACY_PROTECTION_ENABLED=`syscfg get Adv_PPActivate`
 export NON_ROOT_SUPPORT=`syscfg get NonRootSupport`
+export ADV_PC_RFC_ENABLED=`syscfg get Adv_PCRFCEnable`
+export PRIVACY_PROTECTION_RFC_ENABLED=`syscfg get Adv_PrivProtRFCEnable`
 
 export ADV_PARENTAL_CONTROL_ACTIVATED_LOG=ADVANCED_PARENTAL_CONTROL_ACTIVATED
 export ADV_PARENTAL_CONTROL_DEACTIVATED_LOG=ADVANCED_PARENTAL_CONTROL_DEACTIVATED
@@ -538,12 +538,12 @@ advsec_restart_rabid() {
                 advsec_rabid_start_sf
         fi
 
-        if [ -e ${ADV_PARENTAL_CONTROL_PATH} ] && [ ! -e ${ADV_PARENTAL_CONTROL_RFC_DISABLED_PATH} ]
+        if [ -e ${ADV_PARENTAL_CONTROL_PATH} ] && [ "$ADV_PC_RFC_ENABLED" = "1" ]
         then
                start_adv_parental_control
         fi
 
-        if [ -e ${PRIVACY_PROTECTION_PATH} ] && [ ! -e ${PRIVACY_PROTECTION_RFC_DISABLED_PATH} ]
+        if [ -e ${PRIVACY_PROTECTION_PATH} ] && [ "$PRIVACY_PROTECTION_RFC_ENABLED" = "1" ]
         then
                start_privacy_protection
         fi
