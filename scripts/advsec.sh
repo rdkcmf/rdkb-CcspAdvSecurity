@@ -136,7 +136,6 @@ advsec_rabid_start_fp()
 advsec_rabid_start_sb()
 {
     ${RUNTIME_DIR}/bin/rabid-feature on "safebro.reputation" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
-    ${RUNTIME_DIR}/bin/rabid-feature on "safebro.profiles" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
     touch ${SAFEBRO_ENABLE}
 }
 
@@ -166,7 +165,6 @@ advsec_rabid_stop_sb()
 {
     if [ -e ${SAFEBRO_ENABLE} ]; then
         ${RUNTIME_DIR}/bin/rabid-feature off "safebro.reputation" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
-        ${RUNTIME_DIR}/bin/rabid-feature off "safebro.profiles" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
         rm ${SAFEBRO_ENABLE}
     fi
 }
