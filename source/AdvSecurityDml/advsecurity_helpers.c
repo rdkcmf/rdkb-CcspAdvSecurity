@@ -21,6 +21,7 @@
 #include <msgpack.h>
 #include "ccsp_trace.h"
 #include "advsecurity_helpers.h"
+#include "safec_lib_common.h"
 /*----------------------------------------------------------------------------*/
 /*                                   Macros                                   */
 /*----------------------------------------------------------------------------*/
@@ -48,6 +49,8 @@ void* comp_helper_convert( const void *buf, size_t len,
                       process_fn_t process,
                       destroy_fn_t destroy )
 {
+    errno_t rc = -1;
+    int ind = -1;
     void *p = malloc( struct_size );
     if( NULL == p )
     {
@@ -55,7 +58,8 @@ void* comp_helper_convert( const void *buf, size_t len,
     }
     else
     {
-        memset( p, 0, struct_size );
+        rc = memset_s( p, struct_size, 0, struct_size );
+        ERR_CHK(rc);
         if( NULL != buf && 0 < len )
         {
             size_t offset = 0;
@@ -77,42 +81,47 @@ void* comp_helper_convert( const void *buf, size_t len,
                 msgpack_object *version;
                 msgpack_object *transaction_id;
                 
-                if( NULL != wrapper && 0 == strncmp(wrapper,"parameters",strlen("parameters"))) 
+                if(NULL != wrapper)
                 {
-                    inner = __finder_comp( wrapper, expect_type, &msg.data.via.map );
+                    rc = strcmp_s("parameters", strlen("parameters"), wrapper, &ind);
+                    ERR_CHK(rc);
+                    if((rc == EOK) && (ind == 0))
+                    {
+                        inner = __finder_comp( wrapper, expect_type, &msg.data.via.map );
                     
-                    if( ((NULL != inner) && (0 == (process)(p, 1, inner))) || 
+                        if( ((NULL != inner) && (0 == (process)(p, 1, inner))) ||
                               ((true == optional) && (NULL == inner)) )
-                    {
-                         msgpack_unpacked_destroy( &msg );
-                         errno = HELPERS_OK;
-                         return p;
+                        {
+                            msgpack_unpacked_destroy( &msg );
+                            errno = HELPERS_OK;
+                            return p;
+                        }
+                        else
+                        {
+                            errno = HELPERS_INVALID_FIRST_ELEMENT;
+                        }
                     }
-                    else 
+                    else if((rc == EOK) && (ind != 0))
                     {
-                         errno = HELPERS_INVALID_FIRST_ELEMENT;
-                    }
+                        inner = __finder_comp( wrapper, expect_type, &msg.data.via.map );
+                        subdoc_name =  __finder_comp( "subdoc_name", expect_type, &msg.data.via.map );
+                        version =  __finder_comp( "version", expect_type, &msg.data.via.map );
+                        transaction_id =  __finder_comp( "transaction_id", expect_type, &msg.data.via.map );
+                    
+                        if( ((NULL != inner) && (0 == (process)(p,4, inner, subdoc_name, version, transaction_id))) ||
+                              ((true == optional) && (NULL == inner)) )
+                        {
+                            msgpack_unpacked_destroy( &msg );
+                            errno = HELPERS_OK;
+                            return p;
+                        }
+                        else 
+                        {      
+                            CcspTraceWarning(("%s Invalid first element\n", __FUNCTION__));
+                            errno = HELPERS_INVALID_FIRST_ELEMENT;
+                        }
+                   }
                 }
-                else if( NULL != wrapper && 0 != strcmp(wrapper,"parameters")) 
-                {
-                    inner = __finder_comp( wrapper, expect_type, &msg.data.via.map );
-                    subdoc_name =  __finder_comp( "subdoc_name", expect_type, &msg.data.via.map );
-                    version =  __finder_comp( "version", expect_type, &msg.data.via.map );
-                    transaction_id =  __finder_comp( "transaction_id", expect_type, &msg.data.via.map );
-                    
-                    if( ((NULL != inner) && (0 == (process)(p,4, inner, subdoc_name, version, transaction_id))) ||
-                              ((true == optional) && (NULL == inner)) )
-                    {
-                         msgpack_unpacked_destroy( &msg );
-                         errno = HELPERS_OK;
-                         return p;
-                    }
-                    else 
-                    {     
-                         CcspTraceWarning(("%s Invalid first element\n", __FUNCTION__));
-                         errno = HELPERS_INVALID_FIRST_ELEMENT;
-                    }
-                } 
               }
             msgpack_unpacked_destroy( &msg );
             if(NULL!=p)
@@ -136,7 +145,11 @@ msgpack_object* __finder_comp( const char *name,
                           msgpack_object_map *map )
 {
     uint32_t i;
-    
+
+    if(name == NULL)
+        return NULL;
+
+
     for( i = 0; i < map->size; i++ ) 
     {
 	
@@ -150,16 +163,8 @@ msgpack_object* __finder_comp( const char *name,
                     return &map->ptr[i].val;
                 }
             }
-            else if(MSGPACK_OBJECT_STR == map->ptr[i].val.type)
-            {   
-                if(0 == strncmp(map->ptr[i].key.via.str.ptr, name, strlen(name)))
-                {   
-                    return &map->ptr[i].val;
-                }
-                
-             }
-             else 
-            {   
+            else 
+            {
                 if(0 == strncmp(map->ptr[i].key.via.str.ptr, name, strlen(name)))
                 {   
                     return &map->ptr[i].val;

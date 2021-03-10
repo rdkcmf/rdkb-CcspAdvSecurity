@@ -49,6 +49,7 @@
 #include <time.h>
 #include "cosa_plugin_api.h"
 #include "dm_pack_create_func.h"
+#include "safec_lib_common.h"
 extern ULONG                            g_ulAllocatedSizePeak;
 
 extern  PDSLH_CPE_CONTROLLER_OBJECT     pDslhCpeController;
@@ -82,6 +83,7 @@ ssp_create_advsec
     (
     )
 {
+    errno_t rc = -1;
     /* Create component common data model object */
 
     g_pComponent_Common_Dm = (PCOMPONENT_COMMON_DM)AnscAllocateMemory(sizeof(COMPONENT_COMMON_DM));
@@ -109,7 +111,12 @@ ssp_create_advsec
         }
         else
         {
-            AnscCopyString(pAdvSecCcdIf->Name, CCSP_CCD_INTERFACE_NAME);
+            rc = strcpy_s(pAdvSecCcdIf->Name, sizeof(pAdvSecCcdIf->Name), CCSP_CCD_INTERFACE_NAME);
+            if(rc != EOK)
+            {
+                ERR_CHK(rc);
+                return ANSC_STATUS_FAILURE;
+            }
 
             pAdvSecCcdIf->InterfaceId              = CCSP_CCD_INTERFACE_ID;
             pAdvSecCcdIf->hOwnerContext            = NULL;
@@ -163,6 +170,7 @@ ssp_engage_advsec
 {
 	ANSC_STATUS					    returnStatus                                         = ANSC_STATUS_SUCCESS;
         char                                                CrName[256];
+        errno_t                                             rc                                                   = -1;
 
     g_pComponent_Common_Dm->Health = CCSP_COMMON_COMPONENT_HEALTH_Yellow;
 
@@ -179,13 +187,11 @@ ssp_engage_advsec
     pDslhCpeController->SetDbusHandle((ANSC_HANDLE)pDslhCpeController, bus_handle);
     pDslhCpeController->Engage((ANSC_HANDLE)pDslhCpeController);
 
-    if ( g_Subsystem[0] != 0 )
+    rc = sprintf_s(CrName, sizeof(CrName), "%s%s", g_Subsystem, CCSP_DBUS_INTERFACE_CR);
+    if(rc < EOK)
     {
-        _ansc_sprintf(CrName, "%s%s", g_Subsystem, CCSP_DBUS_INTERFACE_CR);
-    }
-    else
-    {
-        _ansc_sprintf(CrName, "%s", CCSP_DBUS_INTERFACE_CR);
+        ERR_CHK(rc);
+        return ANSC_STATUS_FAILURE;
     }
 
     if ( g_GetParamValueByPathNameProc == NULL )

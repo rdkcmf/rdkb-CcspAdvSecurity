@@ -28,10 +28,13 @@
 #endif
 #include "stdlib.h"
 #include "webconfig_framework.h"
+#include "safec_lib_common.h"
 
 #define MAX_SUBSYSTEM_SIZE 32
 
 #define ADVSEC_CCSP_INIT_FILE_BOOTUP "/tmp/advsec_ccsp_initialized_bootup"
+
+#define NUM_SUBSYSTEM_TYPES (sizeof(gSubsystem_type_table)/sizeof(gSubsystem_type_table[0]))
 
 PDSLH_CPE_CONTROLLER_OBJECT     pDslhCpeController      = NULL;
 PCOMPONENT_COMMON_DM            g_pComponent_Common_Dm  = NULL;
@@ -44,12 +47,59 @@ BOOL                            g_bActive               = FALSE;
 int consoleDebugEnable = 0;
 FILE* debugLogFile;
 
+enum subsytemType_e {
+    SUBSYS,
+    C,
+    DEBUG,
+    LOGFILE,
+};
+
+
+typedef struct gSubsystem_pair{
+  char                 *name;
+  enum subsytemType_e   type;
+} GSUBSYSTEM_PAIR;
+
+GSUBSYSTEM_PAIR gSubsystem_type_table[] = {
+  { "-subsys",     SUBSYS  },
+  { "-c",          C       },
+  { "-DEBUG",      DEBUG   },
+  { "-LOGFILE",    LOGFILE }
+};
+
+int get_gSubsystem_type_from_name(char *name, enum subsytemType_e *type_ptr)
+{
+  errno_t rc = -1;
+  int ind = -1;
+  unsigned int i = 0;
+  size_t strsize = 0;
+
+  if((name == NULL) || (type_ptr == NULL))
+     return 0;
+
+  strsize = strlen(name);
+
+  for (i = 0 ; i < NUM_SUBSYSTEM_TYPES ; ++i)
+  {
+      rc = strcmp_s(name, strsize, gSubsystem_type_table[i].name, &ind);
+      ERR_CHK(rc);
+      if((rc == EOK) && (!ind))
+      {
+          *type_ptr = gSubsystem_type_table[i].type;
+          return 1;
+      }
+  }
+  return 0;
+}
+
+
 int  cmd_dispatch(int  command)
 {
     char*                           pParamNames[]      = {"Device.IP.Diagnostics.IPPing."};
     parameterValStruct_t**          ppReturnVal        = NULL;
     int                             ulReturnValCount   = 0;
     int                             i                  = 0;
+    ANSC_STATUS                     returnStatus       = ANSC_STATUS_SUCCESS;
 
     switch ( command )
     {
@@ -60,28 +110,33 @@ int  cmd_dispatch(int  command)
 
             {
                 char                            CName[256];
+                errno_t                         rc = -1;
 
-                if ( g_Subsystem[0] != 0 )
+                rc = sprintf_s(CName, sizeof(CName), "%s%s", g_Subsystem, CCSP_COMPONENT_ID_ADVSEC);
+                if(rc < EOK)
                 {
-                    _ansc_sprintf(CName, "%s%s", g_Subsystem, CCSP_COMPONENT_ID_ADVSEC);
-                }
-                else
-                {
-                    _ansc_sprintf(CName, "%s", CCSP_COMPONENT_ID_ADVSEC);
+                    ERR_CHK(rc);
+                    return -1;
                 }
 
-                ssp_AdvsecMbi_MessageBusEngage
-                    ( 
-                        CName,
-                        CCSP_MSG_BUS_CFG,
-                        CCSP_COMPONENT_PATH_ADVSEC
-                    );
+                returnStatus = ssp_AdvsecMbi_MessageBusEngage
+                               ( 
+                                   CName,
+                                   CCSP_MSG_BUS_CFG,
+                                   CCSP_COMPONENT_PATH_ADVSEC
+                               );
+                if(returnStatus != ANSC_STATUS_SUCCESS)
+                     return -1;
             }
 
 #endif
 
-                ssp_create_advsec();
-                ssp_engage_advsec();
+                returnStatus = ssp_create_advsec();
+                if(returnStatus != ANSC_STATUS_SUCCESS)
+                     return -1;
+                returnStatus = ssp_engage_advsec();
+                if(returnStatus != ANSC_STATUS_SUCCESS)
+                     return -1;
                 g_bActive = TRUE;
 
                 CcspTraceInfo(("AdvSec Module loaded successfully...\n"));
@@ -248,9 +303,14 @@ void sig_handler(int sig)
 
 int main(int argc, char* argv[])
 {
+    ANSC_STATUS                     returnStatus       = ANSC_STATUS_SUCCESS;
     int                             cmdChar            = 0;
     BOOL                            bRunAsDaemon       = TRUE;
     int                             idx                = 0;
+    errno_t                         rc                 = 1;
+    enum subsytemType_e             type;
+    int                             ret                = 0;
+
     debugLogFile = stderr;
 #if defined(_DEBUG) && defined(_COSA_SIM_)
     AnscSetTraceLevel(CCSP_TRACE_LEVEL_INFO);
@@ -258,45 +318,61 @@ int main(int argc, char* argv[])
 
     for (idx = 1; idx < argc; idx++)
     {
-        if ( (strcmp(argv[idx], "-subsys") == 0) )
-        {
-          /* Coverity Fix  CID:135431 STRING_SIZE */
-            if( ( (idx+1) < argc  ) && ( strlen(argv[idx + 1]) < sizeof(g_Subsystem) ) )
-            {
-              AnscCopyString(g_Subsystem, argv[idx+1]);
-            }
-            else
-            {
-              CcspTraceWarning(("idx + 1 exceeds argc  \n"));  
-              exit(0);
-            }
-                      
-        }
-        else if ( strcmp(argv[idx], "-c") == 0 )
-        {
-            bRunAsDaemon = FALSE;
-        }
-        else if ( (strcmp(argv[idx], "-DEBUG") == 0) )
-        {
-            consoleDebugEnable = 1;
-            CcspTraceInfo(("DEBUG ENABLE ON \n"));
-        }
-        else if ( (strcmp(argv[idx], "-LOGFILE") == 0) )
-        {
-            // We assume argv[1] is a filename to open
-            debugLogFile = fopen( argv[idx + 1], "a+" );
+        /* get the susbsytem type based on the command line argurments */
 
-            /* fopen returns 0, the NULL pointer, on failure */
-            if ( debugLogFile == 0 )
-            {
-                debugLogFile = stderr;
-                CcspTraceWarning(("Invalid Entry for -LOGFILE input \n"));
-            }
-            else 
-            {
-                fprintf(debugLogFile, "Log File [%s] Opened for Writing in Append Mode \n",  argv[idx+1]);
-            }
+        if(get_gSubsystem_type_from_name(argv[idx], &type))
+        {
+             if (type  == SUBSYS)
+             {
+                  /* Coverity Fix  CID:135431 STRING_SIZE */
+                  if( ( (idx+1) < argc  ) && ( strlen(argv[idx + 1]) < sizeof(g_Subsystem) ) )
+                  {
+                       rc = strcpy_s(g_Subsystem, sizeof(g_Subsystem), argv[idx+1]);
+                       if(rc != EOK)
+                       {
+                           ERR_CHK(rc);
+                           CcspTraceError(("Error in copying argv[idx+1] to g_Subsystem\n"));
+                           exit(0);
+                       }
+                  }
+                  else
+                  {
+                       CcspTraceWarning(("idx + 1 exceeds argc  \n"));  
+                       exit(0);
+                  }
+             }
+             else if (type == C)
+             {
+                  bRunAsDaemon = FALSE;
+             }
+             else if (type == DEBUG)
+             {
+                  consoleDebugEnable = 1;
+                  CcspTraceInfo(("DEBUG ENABLE ON \n"));
+             }
+             else if (type == LOGFILE)
+             {
+                  if( (idx+1) < argc )
+                  {
+                      // We assume argv[1] is a filename to open
+                      FILE *fp = fopen( argv[idx + 1], "a+" );
 
+                      /* fopen returns 0, the NULL pointer, on failure */
+                      if (!fp)
+                      {
+                           CcspTraceWarning(("Cannot open -LOGFILE %s\n", argv[idx+1]));
+                      }
+                      else
+                      {
+                           debugLogFile = fp;
+                           fprintf(debugLogFile, "Log File [%s] Opened for Writing in Append Mode \n",  argv[idx+1]);
+                      }
+                  }
+                  else
+                  {
+                       CcspTraceWarning(("Invalid Entry for -LOGFILE input \n" ));
+                  }
+             }
         }          
     }
 
@@ -313,13 +389,23 @@ int main(int argc, char* argv[])
 
     display_info();
 
-    cmd_dispatch('e');
+    ret = cmd_dispatch('e');
+    if(ret != 0)
+    {
+       CcspTraceError(("Exit error - cmd_dispatch failed %s:%d\n", __FUNCTION__, __LINE__));
+       exit(0);
+    }
 
     while ( cmdChar != 'q' )
     {
         cmdChar = getchar();
 
-        cmd_dispatch(cmdChar);
+        ret = cmd_dispatch(cmdChar);
+        if(ret != 0)
+        {
+            CcspTraceError(("Exit error - cmd_dispatch failed %s:%d\n", __FUNCTION__, __LINE__));
+            exit(0);
+        }
     }
 #elif defined(_ANSC_LINUX)
     if ( bRunAsDaemon )
@@ -344,13 +430,24 @@ int main(int argc, char* argv[])
     signal(SIGPIPE, SIG_IGN);
 #endif
 
-    cmd_dispatch('e');
+    ret = cmd_dispatch('e');
+    if(ret != 0)
+    {
+        CcspTraceError(("Exit error - cmd_dispatch failed %s:%d\n", __FUNCTION__, __LINE__));
+        exit(0);
+    }
 
     check_component_crash(ADVSEC_CCSP_INIT_FILE_BOOTUP);
 
     CcspTraceInfo(("ADVSEC:----------------------touch /tmp/advsec_ccsp__initialized_bootup-------------------\n"));
     char init_file[128] = {0};
-    snprintf(init_file,sizeof(init_file),"touch %s",ADVSEC_CCSP_INIT_FILE_BOOTUP);
+    rc = sprintf_s(init_file,sizeof(init_file),"touch %s",ADVSEC_CCSP_INIT_FILE_BOOTUP);
+    if(rc < EOK)
+    {
+        ERR_CHK(rc);
+        CcspTraceError(("Exit error - Error in copying init_file  %s:%d\n", __FUNCTION__, __LINE__));
+        exit(0);
+    }
     system(init_file);
 
     if ( bRunAsDaemon )
@@ -367,14 +464,24 @@ int main(int argc, char* argv[])
             cmdChar = getchar();
 
             sleep(30);
-            cmd_dispatch(cmdChar);
+            ret = cmd_dispatch(cmdChar);
+            if(ret != 0)
+            {
+                CcspTraceError(("Exit error - cmd_dispatch failed %s:%d\n", __FUNCTION__, __LINE__));
+                exit(0);
+            }
         }
     }
 #endif
 
     if ( g_bActive )
     {
-        ssp_cancel_advsec();
+        returnStatus = ssp_cancel_advsec();
+        if(returnStatus != ANSC_STATUS_SUCCESS)
+        {
+            CcspTraceError(("Exit error - ssp_cancel_advsec() failed %s:%d\n", __FUNCTION__, __LINE__));
+            exit(0);
+        }
 
         g_bActive = FALSE;
     }

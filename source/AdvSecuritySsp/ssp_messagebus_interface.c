@@ -33,6 +33,7 @@
 **********************************************************************/
 
 #include "ssp_global.h"
+#include "safec_lib_common.h"
 
 
 ANSC_HANDLE                 bus_handle         = NULL;
@@ -52,6 +53,7 @@ ssp_AdvsecMbi_MessageBusEngage
 {
     ANSC_STATUS                 returnStatus       = ANSC_STATUS_SUCCESS;
     CCSP_Base_Func_CB           cb                 = {0};
+    errno_t                     rc                 = -1;
 
     if ( ! component_id || ! path )
     {
@@ -79,7 +81,12 @@ ssp_AdvsecMbi_MessageBusEngage
     ssp_AdvsecMbi_WaitConditionReady(bus_handle, CCSP_DBUS_PSM, CCSP_DBUS_PATH_PSM, component_id);
     CcspTraceInfo(("!!! Connected to message bus... bus_handle: 0x%08X !!!\n", bus_handle));
     g_MessageBusHandle_Irep = bus_handle;
-    AnscCopyString(g_SubSysPrefix_Irep, g_Subsystem);
+    rc = strcpy_s(g_SubSysPrefix_Irep, sizeof(g_SubSysPrefix_Irep), g_Subsystem);
+    if(rc != EOK)
+    {
+         ERR_CHK(rc);
+         return ANSC_STATUS_FAILURE;
+    }
 
     CCSP_Msg_SleepInMilliSeconds(1000);
 

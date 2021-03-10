@@ -39,6 +39,7 @@
 #include "cJSON.h"
 #include <ccsp/platform_hal.h>
 #include <syscfg/syscfg.h>
+#include "safec_lib_common.h"
 #if defined(_COSA_BCM_MIPS_)
 #include <ccsp/dpoe_hal.h>
 #else
@@ -84,6 +85,8 @@
 #define CONFIG_VENDOR_NAME "ARRIS Group, Inc."
 #endif
 
+#define NUM_SYSEVENT_TYPES (sizeof(advSysEvent_type_table)/sizeof(advSysEvent_type_table[0]))
+
 extern ANSC_HANDLE bus_handle;
 extern char g_Subsystem[32];
 extern COSA_DATAMODEL_AGENT* g_pAdvSecAgent;
@@ -103,6 +106,53 @@ static pthread_cond_t logCond = PTHREAD_COND_INITIALIZER;
 void advsec_handle_sysevent_async(void);
 static void advsec_start_logger_thread(void);
 static BOOL WaitForLoggerTimeout(ULONG period);
+enum advSysEvent_e{
+    SYSEVENT_PARENTAL_CONTROL_RFC_EVENT,
+    SYSEVENT_PRIVACY_PROTECTION_RFC_EVENT,
+    SYSEVENT_BRIDGE_MODE_EVENT,
+    SYSEVENT_CLOUD_HOST_IP,
+    SYSEVENT_RABID_NONROOT_RFC_EVENT,
+};
+
+/*Structure defined to get the AdvSysEvent Noti type from the given Event names */
+
+typedef struct advSysEvent_pair{
+  char                 *name;
+  enum advSysEvent_e   event;
+} ADV_SYSEVENT_PAIR;
+
+ADV_SYSEVENT_PAIR advSysEvent_type_table[] = {
+  { ADVSEC_SYSEVENT_PARENTAL_CONTROL_RFC_EVENT,     SYSEVENT_PARENTAL_CONTROL_RFC_EVENT   },
+  { ADVSEC_SYSEVENT_PRIVACY_PROTECTION_RFC_EVENT,   SYSEVENT_PRIVACY_PROTECTION_RFC_EVENT },
+  { ADVSEC_SYSEVENT_BRIDGE_MODE_EVENT,              SYSEVENT_BRIDGE_MODE_EVENT            },
+  { ADVSEC_SYSEVENT_CLOUD_HOST_IP,                  SYSEVENT_CLOUD_HOST_IP                },
+  { ADVSEC_SYSEVENT_RABID_NONROOT_RFC_EVENT,        SYSEVENT_RABID_NONROOT_RFC_EVENT      }
+};
+
+int get_advSysEvent_type_from_name(char *name, enum advSysEvent_e *type_ptr)
+{
+  errno_t rc = -1;
+  int ind = -1;
+  unsigned int i = 0;
+  size_t str_size = 0;
+
+  if((name == NULL) || (type_ptr == NULL))
+     return 0;
+
+  str_size = strlen(name);
+
+  for (i = 0 ; i < NUM_SYSEVENT_TYPES ; ++i)
+  {
+      rc = strcmp_s(name, str_size, advSysEvent_type_table[i].name, &ind);
+      ERR_CHK(rc);
+      if((rc == EOK) && (!ind))
+      {
+          *type_ptr = advSysEvent_type_table[i].event;
+          return 1;
+      }
+  }
+  return 0;
+}
 
 static BOOL Is_Device_Finger_Print_Enabled()
 {
@@ -272,6 +322,7 @@ CosaSecurityInitialize
     char hardwareVersion[BUFFERSIZE_MAX]={'\0'};
     char deviceMac[64]={'\0'};
     char manufacturer[64]={'\0'};
+    errno_t rc = -1;
 #if defined(_COSA_BCM_MIPS_)
     dpoe_mac_address_t tDpoe_Mac;
 #else
@@ -327,7 +378,11 @@ CosaSecurityInitialize
  
     if(strlen(CONFIG_VENDOR_NAME) > 0)
     {
-        strncpy(manufacturer, CONFIG_VENDOR_NAME,strlen(CONFIG_VENDOR_NAME));
+        rc = strcpy_s(manufacturer, sizeof(manufacturer), CONFIG_VENDOR_NAME);
+        if(rc != EOK)
+        {
+            ERR_CHK(rc);
+        }
         CcspTraceInfo(("CcspAdvSecurity: Manufacturer Name is %s\n", manufacturer));
     }
     else
@@ -338,8 +393,14 @@ CosaSecurityInitialize
 #if defined(_COSA_BCM_MIPS_)
     if( dpoe_getOnuId(&tDpoe_Mac) == 0)
     {
-        sprintf(deviceMac, "%02x:%02x:%02x:%02x:%02x:%02x",tDpoe_Mac.macAddress[0], tDpoe_Mac.macAddress[1],
+        rc = sprintf_s(deviceMac, sizeof(deviceMac), "%02x:%02x:%02x:%02x:%02x:%02x",tDpoe_Mac.macAddress[0], tDpoe_Mac.macAddress[1],
         tDpoe_Mac.macAddress[2], tDpoe_Mac.macAddress[3], tDpoe_Mac.macAddress[4],tDpoe_Mac.macAddress[5]);
+        if(rc < EOK)
+        {
+            ERR_CHK(rc);
+            sleep(30);
+            exit(0);
+        }
         CcspTraceInfo(("CcspAdvSecurity: deviceMac [%s]\n", deviceMac));
     }
     else
@@ -351,6 +412,7 @@ CosaSecurityInitialize
 #else
     char isEthEnabled[64]={'\0'};
     token_t  token;
+    int  ind = -1;
     int fd = sysevent_open("127.0.0.1", SE_SERVER_WELL_KNOWN_PORT, SE_VERSION, "advsec", &token);
     if (!fd)
     {
@@ -359,15 +421,54 @@ CosaSecurityInitialize
     }
 
     char deviceMACValue[32] = { '\0' };
-    if( 0 == syscfg_get( NULL, "eth_wan_enabled", isEthEnabled, sizeof(isEthEnabled)) && (isEthEnabled[0] != '\0' && strncmp(isEthEnabled, "true", strlen("true")) == 0) && sysevent_get(fd, token, "eth_wan_mac", deviceMACValue, sizeof(deviceMACValue)) == 0 && deviceMACValue[0] != '\0')
+    int found = 0;
+    if( 0 == syscfg_get( NULL, "eth_wan_enabled", isEthEnabled, sizeof(isEthEnabled)))
     {
-        strncpy(deviceMac, deviceMACValue,strlen(deviceMACValue));
+        if(isEthEnabled[0] != '\0')
+        {
+           rc = strcmp_s(isEthEnabled, sizeof(isEthEnabled), "true", &ind);
+           ERR_CHK(rc);
+           if(((rc == EOK) && (ind == 0)) && sysevent_get(fd, token, "eth_wan_mac", deviceMACValue, sizeof(deviceMACValue)) == 0 && deviceMACValue[0] != '\0')
+           {
+               found = 1;
+           }
+        }
+    }
+    if(found == 1)
+    {
+        rc = strcpy_s(deviceMac, sizeof(deviceMac), deviceMACValue);
+        if(rc != EOK)
+        {
+            ERR_CHK(rc);
+            sysevent_close(fd, token);
+            sleep(30);
+            exit(0);
+        }
         CcspTraceInfo(("CcspAdvSecurity: deviceMac [%s]\n", deviceMac));
     }
-    else if (cm_hal_GetDHCPInfo(&dhcpinfo) == 0 && strcmp(dhcpinfo.MACAddress, ADVSEC_DEFAULT_CM_MAC) != 0)
+    else if (cm_hal_GetDHCPInfo(&dhcpinfo) == 0 )
     {
-        strncpy(deviceMac, dhcpinfo.MACAddress,strlen(dhcpinfo.MACAddress));
-        CcspTraceInfo(("CcspAdvSecurity: deviceMac [%s]\n", deviceMac));
+          rc = strcmp_s(dhcpinfo.MACAddress, sizeof(dhcpinfo.MACAddress), ADVSEC_DEFAULT_CM_MAC, &ind);
+          ERR_CHK(rc);
+          if((rc == EOK) && (ind != 0))
+          {
+              rc = strcpy_s(deviceMac, sizeof(deviceMac), dhcpinfo.MACAddress);
+              if(rc != EOK)
+              {
+                  ERR_CHK(rc);
+                  sysevent_close(fd, token);
+                  sleep(30);
+                  exit(0);
+              }
+              CcspTraceInfo(("CcspAdvSecurity: deviceMac [%s]\n", deviceMac));
+          }
+          else
+          {
+              CcspTraceWarning(("CcspAdvSecurity: Unable to get MACAdress or HAL not ready\n"));
+              sysevent_close(fd, token);
+              sleep(30);
+              exit(0);
+          }
     }
     else
     {
@@ -444,10 +545,9 @@ CosaSecurityRemove
 
 ANSC_STATUS CosaGetSysCfgUlong(char* setting, ULONG* value)
 {
-    char buf[32];
+    char buf[32] = {0};
     ANSC_STATUS         ret = ANSC_STATUS_SUCCESS;
 
-    memset(buf, 0, sizeof(buf));
     if(ANSC_STATUS_SUCCESS == (ret = syscfg_get( NULL, setting, buf, sizeof(buf))))
     {
         *value = atol(buf);
@@ -463,10 +563,15 @@ ANSC_STATUS CosaGetSysCfgUlong(char* setting, ULONG* value)
 ANSC_STATUS CosaSetSysCfgUlong(char* setting, ULONG value)
 {
     ANSC_STATUS         ret = ANSC_STATUS_SUCCESS;
-    char buf[32];
+    char buf[32] = {0};
+    errno_t rc = -1;
 
-    memset(buf, 0, sizeof(buf));
-    sprintf(buf,"%lu",value);
+    rc = sprintf_s(buf, sizeof(buf), "%lu", value);
+    if(rc < EOK)
+    {
+        ERR_CHK(rc);
+        return ANSC_STATUS_FAILURE;
+    }
     if(ANSC_STATUS_SUCCESS != (ret = syscfg_set( NULL, setting, buf)))
     {
         CcspTraceError(("syscfg_set failed\n"));
@@ -484,11 +589,17 @@ ANSC_STATUS CosaSetSysCfgUlong(char* setting, ULONG value)
 
 ANSC_STATUS CosaGetSysCfgString(char* setting, char* pValue, PULONG pulSize )
 {
-    char buf[1024];
-    memset(buf, 0, sizeof(buf));
+    char buf[1024] = {0};
+    errno_t rc = -1;
+
     if(ANSC_STATUS_SUCCESS == syscfg_get( NULL, setting, buf, sizeof(buf)))
     {
-        strncpy(pValue ,buf,strlen(buf));
+        rc = strcpy_s(pValue, *pulSize, buf);
+        if(rc != EOK)
+        {
+            ERR_CHK(rc);
+            return ANSC_STATUS_FAILURE;
+        }
         *pulSize = AnscSizeOfString(pValue);
         return ANSC_STATUS_SUCCESS;
     }
@@ -518,9 +629,14 @@ ANSC_STATUS CosaSetSysCfgString( char* setting, char* pValue )
 ANSC_STATUS CosaAdvSecInit()
 {
     ANSC_STATUS  returnStatus = ANSC_STATUS_SUCCESS;
-    char cmd[128];
-    memset(cmd, 0, sizeof(cmd));
-    AnscCopyString(cmd, TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -enable &");
+    char cmd[128] = {0};
+    errno_t rc = -1;
+    rc = strcpy_s(cmd, sizeof(cmd), TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -enable &");
+    if(rc != EOK)
+    {
+        ERR_CHK(rc);
+        return ANSC_STATUS_FAILURE;
+    }
     system(cmd);
     g_pAdvSecAgent->bEnable = TRUE;
     returnStatus = CosaSetSysCfgUlong(g_DeviceFingerPrintEnabled, 1);
@@ -530,9 +646,14 @@ ANSC_STATUS CosaAdvSecInit()
 ANSC_STATUS CosaAdvSecDeInit()
 {
     ANSC_STATUS  returnStatus = ANSC_STATUS_SUCCESS;
-    char cmd[128];
-    memset(cmd, 0, sizeof(cmd));
-    AnscCopyString(cmd, TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -disable &");
+    char cmd[128] = {0};
+    errno_t rc = -1;
+    rc = strcpy_s(cmd, sizeof(cmd), TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -disable &");
+    if(rc != EOK)
+    {
+        ERR_CHK(rc);
+        return ANSC_STATUS_FAILURE;
+    }
     system(cmd);
     g_pAdvSecAgent->bEnable = FALSE;
 
@@ -546,11 +667,18 @@ static void *advsec_logger_th(void *arg)
     char check_log_cmd[COMMAND_MAX];
     char recover_cmd[COMMAND_MAX];
     ULONG remaining_time;
+    errno_t rc = -1;
 
-    memset(check_log_cmd, 0, sizeof(check_log_cmd));
-    AnscCopyString(check_log_cmd, TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/advsec_log_fp_status.sh check_status &");
-    memset(recover_cmd, 0, sizeof(recover_cmd));
-    AnscCopyString(recover_cmd, TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/advsec_cpu_mem_recovery.sh &");
+    rc = strcpy_s(check_log_cmd, sizeof(check_log_cmd), TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/advsec_log_fp_status.sh check_status &");
+    if(rc  != EOK)
+    {
+        ERR_CHK(rc);
+    }
+    rc = strcpy_s(recover_cmd, sizeof(recover_cmd), TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/advsec_cpu_mem_recovery.sh &");
+    if(rc != EOK)
+    {
+        ERR_CHK(rc);
+    }
 
     remaining_time = g_pAdvSecAgent->ulLoggingPeriod;
     while(1)
@@ -602,8 +730,8 @@ static void advsec_start_logger_thread(void)
 ANSC_STATUS CosaAdvSecStartFeatures(advsec_feature_type type)
 {
     ANSC_STATUS  returnStatus = ANSC_STATUS_SUCCESS;
-    char cmd[COMMAND_MAX];
-    memset(cmd, 0, sizeof(cmd));
+    char cmd[COMMAND_MAX] = {0};
+    errno_t rc = -1;
 
     if (Is_Device_Finger_Print_Enabled() && !Is_Device_Finger_Print_Enabled_Completed())
     {
@@ -615,23 +743,65 @@ ANSC_STATUS CosaAdvSecStartFeatures(advsec_feature_type type)
     {
         case ADVSEC_SAFEBROWSING:
         if(Is_Device_Finger_Print_Enabled())
-            AnscCopyString(cmd, TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -start sb null &");
+        {
+            rc = strcpy_s(cmd, sizeof(cmd), TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -start sb null &");
+            if(rc != EOK)
+            {
+                ERR_CHK(rc);
+                return ANSC_STATUS_FAILURE;
+            }
+        }
         else
-            AnscCopyString(cmd, TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -enable sb null &");
+        {
+            rc = strcpy_s(cmd, sizeof(cmd), TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -enable sb null &");
+            if(rc != EOK)
+            {
+                ERR_CHK(rc);
+                return ANSC_STATUS_FAILURE;
+            }
+        }
         break;
 
         case ADVSEC_SOFTFLOWD:
         if(Is_Device_Finger_Print_Enabled())
-            AnscCopyString(cmd, TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -start null sf &");
+        {
+            rc = strcpy_s(cmd, sizeof(cmd), TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -start null sf &");
+            if(rc != EOK)
+            {
+                ERR_CHK(rc);
+                return ANSC_STATUS_FAILURE;
+            }
+        }
         else
-            AnscCopyString(cmd, TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -enable null sf &");
+        {
+            rc = strcpy_s(cmd, sizeof(cmd), TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -enable null sf &");
+            if(rc != EOK)
+            {
+                ERR_CHK(rc);
+                return ANSC_STATUS_FAILURE;
+            }
+        }
         break;
 
         case ADVSEC_ALL:
         if(Is_Device_Finger_Print_Enabled())
-            AnscCopyString(cmd, TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -start sb sf &");
+        {
+            rc = strcpy_s(cmd, sizeof(cmd), TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -start sb sf &");
+            if(rc != EOK)
+            {
+                ERR_CHK(rc);
+                return ANSC_STATUS_FAILURE;
+            }
+        }
         else
-            AnscCopyString(cmd, TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -enable sb sf &");
+        {
+            rc = strcpy_s(cmd, sizeof(cmd), TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -enable sb sf &");
+            if(rc != EOK)
+            {
+                ERR_CHK(rc);
+                return ANSC_STATUS_FAILURE;
+            }
+        }
         break;
 
         default:
@@ -678,30 +848,72 @@ ANSC_STATUS CosaAdvSecStartFeatures(advsec_feature_type type)
 ANSC_STATUS CosaAdvSecStopFeatures(advsec_feature_type type)
 {
     ANSC_STATUS  returnStatus = ANSC_STATUS_SUCCESS;
-    char cmd[COMMAND_MAX];
-    memset(cmd, 0, sizeof(cmd));
+    char cmd[COMMAND_MAX] = {0};
+    errno_t rc = -1;
 
     switch (type)
     {
         case ADVSEC_SAFEBROWSING:
         if(Is_Device_Finger_Print_Enabled())
-            AnscCopyString(cmd, TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -stop sb null &");
+        {
+            rc = strcpy_s(cmd, sizeof(cmd), TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -stop sb null &");
+            if(rc != EOK)
+            {
+                ERR_CHK(rc);
+                return ANSC_STATUS_FAILURE;
+            }
+        }
         else
-            AnscCopyString(cmd, TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -disable &");
+        {
+            rc = strcpy_s(cmd, sizeof(cmd), TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -disable &");
+            if(rc != EOK)
+            {
+                ERR_CHK(rc);
+                return ANSC_STATUS_FAILURE;
+            }
+         }
         break;
 
         case ADVSEC_SOFTFLOWD:
         if(Is_Device_Finger_Print_Enabled())
-            AnscCopyString(cmd, TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -stop null sf &");
+        {
+            rc = strcpy_s(cmd, sizeof(cmd), TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -stop null sf &");
+            if(rc != EOK)
+            {
+                ERR_CHK(rc);
+                return ANSC_STATUS_FAILURE;
+            }
+        }
         else
-            AnscCopyString(cmd, TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -disable &");
+        {
+            rc = strcpy_s(cmd, sizeof(cmd),  TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -disable &");
+            if(rc != EOK)
+            {
+                ERR_CHK(rc);
+                return ANSC_STATUS_FAILURE;
+            }
+        }
         break;
 
         case ADVSEC_ALL:
         if(Is_Device_Finger_Print_Enabled())
-            AnscCopyString(cmd, TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -stop sb sf &");
+        {
+            rc = strcpy_s(cmd, sizeof(cmd), TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -stop sb sf &");
+            if(rc != EOK)
+            {
+                ERR_CHK(rc);
+                return ANSC_STATUS_FAILURE;
+            }
+        }
         else
-            AnscCopyString(cmd, TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -disable &");
+        {
+            rc = strcpy_s(cmd, sizeof(cmd), TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -disable &");
+            if(rc != EOK)
+            {
+                ERR_CHK(rc);
+                return ANSC_STATUS_FAILURE;
+            }
+        }
 
         break;
 
@@ -748,8 +960,8 @@ ANSC_STATUS CosaAdvSecStopFeatures(advsec_feature_type type)
 ANSC_STATUS CosaStartAdvParentalControl(BOOL update_status)
 {
     ANSC_STATUS  returnStatus = ANSC_STATUS_SUCCESS;
-    char cmd[COMMAND_MAX];
-    memset(cmd, 0, sizeof(cmd));
+    char cmd[COMMAND_MAX] = {0};
+    errno_t rc = -1;
 
     if (!Is_Rabid_Initialization_Completed())
     {
@@ -765,7 +977,12 @@ ANSC_STATUS CosaStartAdvParentalControl(BOOL update_status)
 
         g_pAdvSecAgent->pAdvPC->bEnable = TRUE;
     }
-    AnscCopyString(cmd, TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -startAdvPC &");
+    rc = strcpy_s(cmd, sizeof(cmd), TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -startAdvPC &");
+    if(rc != EOK)
+    {
+        ERR_CHK(rc);
+        return ANSC_STATUS_FAILURE;
+    }
 
     system(cmd);
 
@@ -775,8 +992,8 @@ ANSC_STATUS CosaStartAdvParentalControl(BOOL update_status)
 ANSC_STATUS CosaStopAdvParentalControl(BOOL update_status)
 {
     ANSC_STATUS  returnStatus = ANSC_STATUS_SUCCESS;
-    char cmd[COMMAND_MAX];
-    memset(cmd, 0, sizeof(cmd));
+    char cmd[COMMAND_MAX] = {0};
+    errno_t rc = -1;
 
     if (!Is_Rabid_Initialization_Completed())
     {
@@ -792,7 +1009,12 @@ ANSC_STATUS CosaStopAdvParentalControl(BOOL update_status)
 
         g_pAdvSecAgent->pAdvPC->bEnable = FALSE;
     }
-    AnscCopyString(cmd, TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -stopAdvPC &");
+    rc = strcpy_s(cmd, sizeof(cmd), TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -stopAdvPC &");
+    if(rc != EOK)
+    {
+        ERR_CHK(rc);
+        return ANSC_STATUS_FAILURE;
+    }
 
     system(cmd);
 
@@ -802,8 +1024,8 @@ ANSC_STATUS CosaStopAdvParentalControl(BOOL update_status)
 ANSC_STATUS CosaStartPrivacyProtection(BOOL update_status)
 {
     ANSC_STATUS  returnStatus = ANSC_STATUS_SUCCESS;
-    char cmd[COMMAND_MAX];
-    memset(cmd, 0, sizeof(cmd));
+    char cmd[COMMAND_MAX] = {0};
+    errno_t rc = -1;
 
     if (!Is_Rabid_Initialization_Completed())
     {
@@ -819,7 +1041,12 @@ ANSC_STATUS CosaStartPrivacyProtection(BOOL update_status)
 
         g_pAdvSecAgent->pPrivProt->bEnable = TRUE;
     }
-    AnscCopyString(cmd, TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -startPrivProt &");
+    rc = strcpy_s(cmd, sizeof(cmd), TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -startPrivProt &");
+    if(rc != EOK)
+    {
+        ERR_CHK(rc);
+        return ANSC_STATUS_FAILURE;
+    }
 
     system(cmd);
 
@@ -829,8 +1056,8 @@ ANSC_STATUS CosaStartPrivacyProtection(BOOL update_status)
 ANSC_STATUS CosaStopPrivacyProtection(BOOL update_status)
 {
     ANSC_STATUS  returnStatus = ANSC_STATUS_SUCCESS;
-    char cmd[COMMAND_MAX];
-    memset(cmd, 0, sizeof(cmd));
+    char cmd[COMMAND_MAX] = {0};
+    errno_t rc = -1;
 
     if (!Is_Rabid_Initialization_Completed())
     {
@@ -846,7 +1073,12 @@ ANSC_STATUS CosaStopPrivacyProtection(BOOL update_status)
 
         g_pAdvSecAgent->pPrivProt->bEnable = FALSE;
     }
-    AnscCopyString(cmd, TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -stopPrivProt &");
+    rc = strcpy_s(cmd, sizeof(cmd), TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -stopPrivProt &");
+    if(rc != EOK)
+    {
+        ERR_CHK(rc);
+        return ANSC_STATUS_FAILURE;
+    }
 
     system(cmd);
 
@@ -903,10 +1135,15 @@ int advsec_webconfig_handle_blob(advsecurityparam_t *feature)
     }
     else
     {
-        char cmd[COMMAND_MAX];
-        memset(cmd, 0, sizeof(cmd));
+        char cmd[COMMAND_MAX] = {0};
+        errno_t rc = -1;
 
-        AnscCopyString(cmd, TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -configure_features &");
+        rc = strcpy_s(cmd, sizeof(cmd), TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -configure_features &");
+        if(rc != EOK)
+        {
+            ERR_CHK(rc);
+            return SYSCFG_FAILURE;
+        }
         system(cmd);
     }
 
@@ -969,9 +1206,14 @@ ANSC_STATUS CosaAdvSecSetLookupTimeout(ULONG value)
         g_pAdvSecAgent->pAdvSec->pSafeBrows->ulLookupTimeout = value;
         if (g_pAdvSecAgent->pAdvSec->pSafeBrows->bEnable == TRUE)
         {
-            char cmd[COMMAND_MAX];
-            memset(cmd, 0, sizeof(cmd));
-            AnscCopyString(cmd, TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -start sb null &");
+            char cmd[COMMAND_MAX] = {0};
+            errno_t rc = -1;
+            rc = strcpy_s(cmd, sizeof(cmd), TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -start sb null &");
+            if(rc != EOK)
+            {
+                ERR_CHK(rc);
+                return ANSC_STATUS_FAILURE;
+            }
             system(cmd);
         }
     }
@@ -986,9 +1228,8 @@ ULONG CosaAdvSecGetLookupTimeoutExceededCount()
 {
     ULONG lcount = 0;
     FILE *fp;
-    char buf[COMMAND_MAX];
+    char buf[COMMAND_MAX] = {0};
 
-    memset(buf,0,sizeof(buf));
     fp = fopen(ADVSEC_LOOKUP_EXCEED_COUNT_FILE, "r");
     if ( fp != NULL)
     {
@@ -1065,111 +1306,126 @@ int advsec_sysevent_init(void)
 */
 void advsec_handle_sysevent_notification(char *event, char *val)
 {
+    enum advSysEvent_e type;
+
     if(!event || !val)
         return;
 
     CcspTraceWarning(("CcspAdvSecurity: Received notification event:val %s:%s\n", event,val));
-    if ( strcmp(event,ADVSEC_SYSEVENT_PARENTAL_CONTROL_RFC_EVENT) == 0 )
-    {
-       if(g_pAdvSecAgent->pAdvPC->bEnable)
-       {
-            if (strcmp(val,"0") == 0)
-            {
-                CcspTraceWarning(("CcspAdvSecurity: Received Adv parental control RFC disable\n"));
-                CosaStopAdvParentalControl(FALSE);
-            }
 
-            if (strcmp(val,"1") == 0)
-            {
-                CcspTraceWarning(("CcspAdvSecurity: Received Adv parental control RFC enable\n"));
-                CosaStartAdvParentalControl(FALSE);
-            }
-        }
-    }
-    else if ( strcmp(event,ADVSEC_SYSEVENT_PRIVACY_PROTECTION_RFC_EVENT) == 0 )
+    if(get_advSysEvent_type_from_name(event, &type))
     {
-       if(g_pAdvSecAgent->pPrivProt->bEnable)
-       {
-            if (strcmp(val,"0") == 0)
-            {
-                CcspTraceWarning(("CcspAdvSecurity: Received Privacy Protection RFC disable\n"));
-                CosaStopPrivacyProtection(FALSE);
-            }
-
-            if (strcmp(val,"1") == 0)
-            {
-                CcspTraceWarning(("CcspAdvSecurity: Received Privacy Protection RFC enable\n"));
-                CosaStartPrivacyProtection(FALSE);
-            }
-        }
-    }
-    else if ( strcmp(event,ADVSEC_SYSEVENT_BRIDGE_MODE_EVENT) == 0 )
-    {
-        char cmd[COMMAND_MAX];
-        memset(cmd, 0, sizeof(cmd));
-
-        if (strcmp(val,"0") == 0)
+        if(type == SYSEVENT_PARENTAL_CONTROL_RFC_EVENT)
         {
-            CcspTraceWarning(("CcspAdvSecurity: Received Bridge Mode Off\n"));
-            AnscCopyString(cmd, TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -enable &");
-            system(cmd);
-        }
-
-        if (strcmp(val,"2") == 0)
-        {
-            CcspTraceWarning(("CcspAdvSecurity: Received Bridge Mode On\n"));
-            AnscCopyString(cmd, TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -disable &");
-            system(cmd);
-        }
-    }
-    else if ( strcmp(event,ADVSEC_SYSEVENT_CLOUD_HOST_IP) == 0 )
-    {
-        char url[COMMAND_MAX];
-        memset(url, 0, sizeof(url));
-
-        if (advsec_read_from_file(ADVSEC_CLOUD_HOST,url))
-        {
-            char *host1 = NULL;
-            char *host2 = NULL;
-            char *port = NULL;
-            char *ip = NULL;
-            if ((host1 = strtok(url, ":")) != NULL)
+            if(g_pAdvSecAgent->pAdvPC->bEnable)
             {
-                port = strtok(NULL, ":");
-
-                if ((host2 = strtok(val, ":")) != NULL)
+                if((val[0] == '0') && (val[1] == '\0'))
                 {
-                    ip = strtok(NULL, ":");
+                    CcspTraceWarning(("CcspAdvSecurity: Received Adv parental control RFC disable\n"));
+                    CosaStopAdvParentalControl(FALSE);
                 }
 
-                if ( port && ip && strcmp(host1,host2) == 0)
+                if((val[0] == '1') && (val[1] == '\0'))
                 {
-                    char ip_port[COMMAND_MAX];
-                    memset(ip_port, 0, sizeof(ip_port));
-                    strcpy(ip_port,ip);
-                    strcat(ip_port,":");
-                    strcat(ip_port,port);
-                    CcspTraceWarning(("CcspAdvSecurity: cloud ip:port %s\n",ip_port));
-                    if ( ! advsec_write_to_file(ADVSEC_CLOUD_IP,ip_port) )
+                    CcspTraceWarning(("CcspAdvSecurity: Received Adv parental control RFC enable\n"));
+                    CosaStartAdvParentalControl(FALSE);
+                }
+            }
+        }
+        else if(type == SYSEVENT_PRIVACY_PROTECTION_RFC_EVENT)
+        {
+            if(g_pAdvSecAgent->pPrivProt->bEnable)
+            {
+               if((val[0] == '0') && (val[1] == '\0'))
+               {
+                   CcspTraceWarning(("CcspAdvSecurity: Received Privacy Protection RFC disable\n"));
+                   CosaStopPrivacyProtection(FALSE);
+               }
+
+               if((val[0] == '1') && (val[1] == '\0'))
+               {
+                   CcspTraceWarning(("CcspAdvSecurity: Received Privacy Protection RFC enable\n"));
+                   CosaStartPrivacyProtection(FALSE);
+               }
+            }
+        }
+        else if(type == SYSEVENT_BRIDGE_MODE_EVENT)
+        {
+            char cmd[COMMAND_MAX] = {0};
+            errno_t rc = -1;
+
+            if((val[0] == '0') && (val[1] == '\0'))
+            {
+                CcspTraceWarning(("CcspAdvSecurity: Received Bridge Mode Off\n"));
+                rc = strcpy_s(cmd, sizeof(cmd), TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -enable &");
+                if(rc != EOK)
+                {
+                     ERR_CHK(rc);
+                     return;
+                }
+                system(cmd);
+            }
+
+            if((val[0] == '2') && (val[1] == '\0'))
+            {
+                CcspTraceWarning(("CcspAdvSecurity: Received Bridge Mode On\n"));
+                rc = strcpy_s(cmd, sizeof(cmd), TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -disable &");
+                if(rc != EOK)
+                {
+                    ERR_CHK(rc);
+                    return;
+                }
+                system(cmd);
+            }
+        }
+        else if(type == SYSEVENT_CLOUD_HOST_IP)
+        {
+            char url[COMMAND_MAX];
+            memset(url, 0, sizeof(url));
+
+            if (advsec_read_from_file(ADVSEC_CLOUD_HOST,url))
+            {
+                char *host1 = NULL;
+                char *host2 = NULL;
+                char *port = NULL;
+                char *ip = NULL;
+                if ((host1 = strtok(url, ":")) != NULL)
+                {
+                    port = strtok(NULL, ":");
+
+                    if ((host2 = strtok(val, ":")) != NULL)
                     {
-                        CcspTraceError(("CcspAdvSecurity: advsec_write_to_file failed\n"));
+                       ip = strtok(NULL, ":");
+                    }
+
+                    if ( port && ip && strcmp(host1,host2) == 0)
+                    {
+                        char ip_port[COMMAND_MAX];
+                        memset(ip_port, 0, sizeof(ip_port));
+                        strcpy(ip_port,ip);
+                        strcat(ip_port,":");
+                        strcat(ip_port,port);
+                        CcspTraceWarning(("CcspAdvSecurity: cloud ip:port %s\n",ip_port));
+                        if ( ! advsec_write_to_file(ADVSEC_CLOUD_IP,ip_port) )
+                        {
+                            CcspTraceError(("CcspAdvSecurity: advsec_write_to_file failed\n"));
+                        }
                     }
                 }
             }
         }
-    }
-    else if ( strcmp(event,ADVSEC_SYSEVENT_RABID_NONROOT_RFC_EVENT) == 0 )
-    {
-        char cmd[COMMAND_MAX];
-        memset(cmd, 0, sizeof(cmd));
-
-        if (strcmp(val,"0") == 0 || strcmp(val,"1") == 0)
+        else if(type == SYSEVENT_RABID_NONROOT_RFC_EVENT)
         {
-            AnscCopyString(cmd, TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -restart &");
-            system(cmd);
+            char cmd[COMMAND_MAX];
+            memset(cmd, 0, sizeof(cmd));
+
+            if (strcmp(val,"0") == 0 || strcmp(val,"1") == 0)
+            {
+                AnscCopyString(cmd, TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -restart &");
+                system(cmd);
+            }
         }
     }
-
 
     return;
 }
@@ -1296,13 +1552,10 @@ void advsec_handle_sysevent_async(void)
 
 static BOOL WaitForLoggerTimeout(ULONG period)
 {
-    struct timespec _ts;
-    struct timespec _now;
+    struct timespec _ts = {0};
+    struct timespec _now = {0};
     int n;
     BOOL ret = TRUE;
-
-    memset(&_ts, 0, sizeof(struct timespec));
-    memset(&_now, 0, sizeof(struct timespec));
 
     pthread_mutex_lock(&logMutex);
 

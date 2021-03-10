@@ -26,6 +26,7 @@
 #include "msgpack.h"
 #include "advsecurity_param.h"
 #include "base64.h"
+#include "safec_lib_common.h"
 
 extern COSA_DATAMODEL_AGENT* g_pAdvSecAgent;
 
@@ -117,7 +118,15 @@ DeviceFingerPrint_GetParamBoolValue
     UNREFERENCED_PARAMETER(hInsContext);
     /* check the parameter name and return the corresponding value */
     PCOSA_DATAMODEL_AGENT       pMyObject     = (PCOSA_DATAMODEL_AGENT)g_pAdvSecAgent;
-    if( AnscEqualString(ParamName, "Enable", TRUE))
+    errno_t rc = -1;
+    int ind = -1;
+
+    if(ParamName == NULL)
+       return FALSE;
+
+    rc = strcmp_s("Enable", strlen("Enable"), ParamName, &ind);
+    ERR_CHK(rc);
+    if((rc == EOK) && (!ind))
     {
         *pBool = pMyObject->bEnable;
         return TRUE;
@@ -169,7 +178,15 @@ DeviceFingerPrint_SetParamBoolValue
     /* check the parameter name and return the corresponding value */
     PCOSA_DATAMODEL_AGENT       pMyObject     = (PCOSA_DATAMODEL_AGENT)g_pAdvSecAgent;
     ANSC_STATUS  returnStatus = ANSC_STATUS_SUCCESS;
-    if( AnscEqualString(ParamName, "Enable", TRUE))
+    errno_t rc = -1;
+    int ind = -1;
+
+    if(ParamName == NULL)
+        return FALSE;
+
+    rc = strcmp_s("Enable", strlen("Enable"), ParamName, &ind);
+    ERR_CHK(rc);
+    if((rc == EOK) && (!ind))
     {
         if(bValue == pMyObject->bEnable)
                 return TRUE;
@@ -231,7 +248,15 @@ DeviceFingerPrint_GetParamUlongValue
 {
     UNREFERENCED_PARAMETER(hInsContext);
     /* check the parameter name and return the corresponding value */
-    if( AnscEqualString(ParamName, "LoggingPeriod", TRUE))
+    errno_t rc = -1;
+    int ind = -1;
+
+    if(ParamName == NULL)
+       return FALSE;
+
+    rc = strcmp_s("LoggingPeriod", strlen("LoggingPeriod"), ParamName, &ind);
+    ERR_CHK(rc);
+    if((rc == EOK) && (!ind))
     {
         *puLong = g_pAdvSecAgent->ulLoggingPeriod;
         return TRUE;
@@ -282,7 +307,15 @@ DeviceFingerPrint_SetParamUlongValue
     UNREFERENCED_PARAMETER(hInsContext);
     /* check the parameter name and return the corresponding value */
     ANSC_STATUS  returnStatus = ANSC_STATUS_SUCCESS;
-    if( AnscEqualString(ParamName, "LoggingPeriod", TRUE))
+    errno_t rc = -1;
+    int ind = -1;
+
+    if(ParamName == NULL)
+        return FALSE;
+
+    rc = strcmp_s("LoggingPeriod", strlen("LoggingPeriod"), ParamName, &ind);
+    ERR_CHK(rc);
+    if((rc == EOK) && (!ind))
     {
         if ( bValue < ADVSEC_MIN_LOG_TIMEOUT || bValue > ADVSEC_MAX_LOG_TIMEOUT )
         {
@@ -357,9 +390,16 @@ DeviceFingerPrint_GetParamStringValue
 {
     UNREFERENCED_PARAMETER(hInsContext);
     ANSC_STATUS  returnStatus = ANSC_STATUS_SUCCESS;
+    errno_t rc = -1;
+    int ind = -1;
+
+    if(ParamName == NULL)
+       return -1;
 
     /* check the parameter name and return the corresponding value */
-    if( AnscEqualString(ParamName, "EndpointURL", TRUE))
+    rc = strcmp_s("EndpointURL", strlen("EndpointURL"), ParamName, &ind);
+    ERR_CHK(rc);
+    if((rc == EOK) && (!ind))
     {
         returnStatus = CosaAdvSecGetCustomURL(pValue, pUlSize);
 
@@ -415,8 +455,16 @@ DeviceFingerPrint_SetParamStringValue
 {
     UNREFERENCED_PARAMETER(hInsContext);
     ANSC_STATUS returnStatus = ANSC_STATUS_SUCCESS;
+    errno_t rc = -1;
+    int ind = -1;
+
+    if(ParamName == NULL)
+        return FALSE;
+
     /* check the parameter name and set the corresponding value */
-    if( AnscEqualString(ParamName, "EndpointURL", TRUE))
+    rc = strcmp_s("EndpointURL", strlen("EndpointURL"), ParamName, &ind);
+    ERR_CHK(rc);
+    if((rc == EOK) && (!ind))
     {
         if(ANSC_STATUS_SUCCESS == isValidUrl(pString))
         {
@@ -474,8 +522,15 @@ AdvancedSecurity_SetParamStringValue
     )
 {
     UNREFERENCED_PARAMETER(hInsContext);
+    errno_t rc = -1;
+    int ind = -1;
+
+    if(ParamName == NULL)
+        return FALSE;
     /* check the parameter name and set the corresponding value */
-    if( AnscEqualString(ParamName, "Data", TRUE))
+    rc = strcmp_s("Data", strlen("Data"), ParamName, &ind);
+    ERR_CHK(rc);
+    if((rc == EOK) && (!ind))
     {
         advsecuritydoc_t *ad = NULL;
         int err;
@@ -540,13 +595,29 @@ AdvancedSecurity_SetParamStringValue
 
                 if ( execDataAdvsec != NULL )
                 {
-                    memset(execDataAdvsec, 0, sizeof(execData));
+                    rc = memset_s(execDataAdvsec, sizeof(execData), 0, sizeof(execData));
+                    ERR_CHK(rc);
 
                     execDataAdvsec->txid = ad->transaction_id;
                     execDataAdvsec->version = ad->version;
                     execDataAdvsec->numOfEntries = 1;
 
-                    strncpy(execDataAdvsec->subdoc_name,ad->subdoc_name,sizeof(execDataAdvsec->subdoc_name)-1);
+                    rc = strcpy_s(execDataAdvsec->subdoc_name, sizeof(execDataAdvsec->subdoc_name), ad->subdoc_name);
+                    if(rc != EOK)
+                    {
+                       ERR_CHK(rc);
+                       if(execDataAdvsec)
+                       {
+                           AnscFreeMemory(execDataAdvsec);
+                           execDataAdvsec = NULL;
+                       }
+                       if(decodeMsg)
+                       {
+                            AnscFreeMemory(decodeMsg);
+                            decodeMsg = NULL;
+                       }
+                       return FALSE;
+                    }
 
                     execDataAdvsec->user_data = (void*) ad;
                     execDataAdvsec->calcTimeout = NULL ;
@@ -636,9 +707,15 @@ SafeBrowsing_GetParamBoolValue
     )
 {
     UNREFERENCED_PARAMETER(hInsContext);
+    errno_t rc = -1;
+    int ind = -1;
+    if(ParamName == NULL)
+        return FALSE;
     /* check the parameter name and return the corresponding value */
     PCOSA_DATAMODEL_AGENT       pMyObject     = (PCOSA_DATAMODEL_AGENT)g_pAdvSecAgent;
-    if( AnscEqualString(ParamName, "Enable", TRUE) )
+    rc = strcmp_s("Enable", strlen("Enable"), ParamName, &ind);
+    ERR_CHK(rc);
+    if((rc == EOK) && (!ind))
     {
         if ( !pMyObject->bEnable )
         {
@@ -695,9 +772,18 @@ SafeBrowsing_SetParamBoolValue
 {
     UNREFERENCED_PARAMETER(hInsContext);
     /* check the parameter name and return the corresponding value */
+    errno_t rc = -1;
+    int ind = -1;
+
     PCOSA_DATAMODEL_AGENT       pMyObject     = (PCOSA_DATAMODEL_AGENT)g_pAdvSecAgent;
     ANSC_STATUS  returnStatus = ANSC_STATUS_SUCCESS;
-    if( AnscEqualString(ParamName, "Enable", TRUE) )
+
+    if(ParamName == NULL)
+        return FALSE;
+
+    rc = strcmp_s("Enable", strlen("Enable"), ParamName, &ind);
+    ERR_CHK(rc);
+    if((rc == EOK) && (!ind))
     {
         if ( !pMyObject->bEnable )
         {
@@ -765,8 +851,16 @@ SafeBrowsing_GetParamUlongValue
 {
     UNREFERENCED_PARAMETER(hInsContext);
     /* check the parameter name and return the corresponding value */
+    errno_t rc = -1;
+    int ind = -1;
     PCOSA_DATAMODEL_AGENT       pMyObject     = (PCOSA_DATAMODEL_AGENT)g_pAdvSecAgent;
-    if( AnscEqualString(ParamName, "LookupTimeout", TRUE) )
+
+    if(ParamName == NULL)
+        return FALSE;
+
+    rc = strcmp_s("LookupTimeout", strlen("LookupTimeout"), ParamName, &ind);
+    ERR_CHK(rc);
+    if((rc == EOK) && (!ind))
     {
         if ( !pMyObject->bEnable )
         {
@@ -778,7 +872,9 @@ SafeBrowsing_GetParamUlongValue
         return TRUE;
     }
 
-    if( AnscEqualString(ParamName, "LookupTimeoutExceededCount", TRUE) )
+    rc = strcmp_s("LookupTimeoutExceededCount", strlen("LookupTimeoutExceededCount"), ParamName, &ind);
+    ERR_CHK(rc);
+    if((rc == EOK) && (!ind))
     {
         if ( !pMyObject->bEnable )
         {
@@ -836,7 +932,14 @@ SafeBrowsing_SetParamUlongValue
     /* check the parameter name and return the corresponding value */
     PCOSA_DATAMODEL_AGENT       pMyObject     = (PCOSA_DATAMODEL_AGENT)g_pAdvSecAgent;
     ANSC_STATUS  returnStatus = ANSC_STATUS_SUCCESS;
-    if( AnscEqualString(ParamName, "LookupTimeout", TRUE) )
+    errno_t rc = -1;
+    int ind = -1;
+    if(ParamName == NULL)
+        return FALSE;
+
+    rc = strcmp_s("LookupTimeout", strlen("LookupTimeout"), ParamName, &ind);
+    ERR_CHK(rc);
+    if((rc == EOK) && (!ind))
     {
         if ( !pMyObject->bEnable )
         {
@@ -1031,7 +1134,15 @@ Softflowd_GetParamBoolValue
     UNREFERENCED_PARAMETER(hInsContext);
     /* check the parameter name and return the corresponding value */
     PCOSA_DATAMODEL_AGENT       pMyObject     = (PCOSA_DATAMODEL_AGENT)g_pAdvSecAgent;
-    if( AnscEqualString(ParamName, "Enable", TRUE) )
+    errno_t rc = -1;
+    int ind = -1;
+
+    if(ParamName == NULL)
+        return FALSE;
+
+    rc = strcmp_s("Enable", strlen("Enable"), ParamName, &ind);
+    ERR_CHK(rc);
+    if((rc == EOK) && (!ind))
     {
         if ( !pMyObject->bEnable )
         {
@@ -1090,7 +1201,15 @@ Softflowd_SetParamBoolValue
     /* check the parameter name and return the corresponding value */
     PCOSA_DATAMODEL_AGENT       pMyObject     = (PCOSA_DATAMODEL_AGENT)g_pAdvSecAgent;
     ANSC_STATUS  returnStatus = ANSC_STATUS_SUCCESS;
-    if( AnscEqualString(ParamName, "Enable", TRUE) )
+    errno_t rc = -1;
+    int ind = -1;
+
+    if(ParamName == NULL)
+       return FALSE;
+
+    rc = strcmp_s("Enable", strlen("Enable"), ParamName, &ind);
+    ERR_CHK(rc);
+    if((rc == EOK) && (!ind))
     {
         if ( !pMyObject->bEnable )
         {
@@ -1282,7 +1401,15 @@ AdvancedParentalControl_GetParamBoolValue
     UNREFERENCED_PARAMETER(hInsContext);
     /* check the parameter name and return the corresponding value */
     PCOSA_DATAMODEL_AGENT       pMyObject     = (PCOSA_DATAMODEL_AGENT)g_pAdvSecAgent;
-    if( AnscEqualString(ParamName, "Activate", TRUE) )
+    errno_t rc = -1;
+    int ind = -1;
+
+    if(ParamName == NULL)
+        return FALSE;
+
+    rc = strcmp_s("Activate", strlen("Activate"), ParamName, &ind);
+    ERR_CHK(rc);
+    if((rc == EOK) && (!ind))
     {
         if ( !pMyObject->bEnable )
         {
@@ -1339,7 +1466,15 @@ AdvancedParentalControl_SetParamBoolValue
     /* check the parameter name and return the corresponding value */
     PCOSA_DATAMODEL_AGENT       pMyObject     = (PCOSA_DATAMODEL_AGENT)g_pAdvSecAgent;
     ANSC_STATUS  returnStatus = ANSC_STATUS_SUCCESS;
-    if( AnscEqualString(ParamName, "Activate", TRUE) )
+    errno_t rc = -1;
+    int ind = -1;
+
+    if(ParamName == NULL)
+       return FALSE;
+
+    rc = strcmp_s("Activate", strlen("Activate"), ParamName, &ind);
+    ERR_CHK(rc);
+    if((rc == EOK) && (!ind))
     {
         if ( !pMyObject->bEnable )
         {
@@ -1529,7 +1664,15 @@ PrivacyProtection_GetParamBoolValue
     UNREFERENCED_PARAMETER(hInsContext);
     /* check the parameter name and return the corresponding value */
     PCOSA_DATAMODEL_AGENT       pMyObject     = (PCOSA_DATAMODEL_AGENT)g_pAdvSecAgent;
-    if( AnscEqualString(ParamName, "Activate", TRUE) )
+    errno_t rc = -1;
+    int ind = -1;
+
+    if(ParamName == NULL)
+        return FALSE;
+
+    rc = strcmp_s("Activate", strlen("Activate"), ParamName, &ind);
+    ERR_CHK(rc);
+    if((rc == EOK) && (!ind))
     {
         if ( !pMyObject->bEnable )
         {
@@ -1586,7 +1729,15 @@ PrivacyProtection_SetParamBoolValue
     /* check the parameter name and return the corresponding value */
     PCOSA_DATAMODEL_AGENT       pMyObject     = (PCOSA_DATAMODEL_AGENT)g_pAdvSecAgent;
     ANSC_STATUS  returnStatus = ANSC_STATUS_SUCCESS;
-    if( AnscEqualString(ParamName, "Activate", TRUE) )
+    errno_t rc = -1;
+    int ind = -1;
+
+    if(ParamName == NULL)
+        return FALSE;
+
+    rc = strcmp_s("Activate", strlen("Activate"), ParamName, &ind);
+    ERR_CHK(rc);
+    if((rc == EOK) && (!ind))
     {
         if ( !pMyObject->bEnable )
         {

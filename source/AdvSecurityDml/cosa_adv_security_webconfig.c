@@ -19,7 +19,7 @@
 #include "cosa_adv_security_webconfig.h"
 #include "webconfig_framework.h"
 #include <syscfg/syscfg.h>
-
+#include "safec_lib_common.h"
 /* API to get the subdoc version */
 
 
@@ -27,7 +27,13 @@ uint32_t advsec_webconfig_get_blobversion(char* subdoc)
 {
 
 	char subdoc_ver[64] = {0}, buf[72] = {0};
-    	snprintf(buf,sizeof(buf),"%s_version",subdoc);
+        errno_t rc = -1;
+        rc = sprintf_s(buf,sizeof(buf),"%s_version",subdoc);
+        if(rc < EOK)
+        {
+            ERR_CHK(rc);
+            return 0;
+        }
     	if ( syscfg_get( NULL, buf, subdoc_ver, sizeof(subdoc_ver)) == 0 )
     	{
         	int version = atoi(subdoc_ver);
@@ -43,8 +49,20 @@ int advsec_webconfig_set_blobversion(char* subdoc,uint32_t version)
 {
 
 	char subdoc_ver[64] = {0}, buf[72] = {0};
-  	snprintf(subdoc_ver,sizeof(subdoc_ver),"%u",version);
-  	snprintf(buf,sizeof(buf),"%s_version",subdoc);
+        errno_t rc = -1;
+
+        rc = sprintf_s(subdoc_ver,sizeof(subdoc_ver),"%u",version);
+        if(rc < EOK)
+        {
+            ERR_CHK(rc);
+            return -1;
+        }
+        rc = sprintf_s(buf,sizeof(buf),"%s_version",subdoc);
+        if(rc < EOK)
+        {
+            ERR_CHK(rc);
+            return -1;
+        }
  	if(syscfg_set(NULL,buf,subdoc_ver) != 0)
  	{
         	CcspTraceError(("syscfg_set failed\n"));
@@ -68,21 +86,30 @@ int advsec_webconfig_set_blobversion(char* subdoc,uint32_t version)
 
 void advsec_webconfig_init()
 {
+        errno_t rc = -1;
 	char *sub_docs[SUBDOC_COUNT+1]= {ADVSEC_WEBCONFIG_SUBDOC_NAME,(char *) 0 };
     
     	blobRegInfo *blobData;
 
     	blobData = (blobRegInfo*) AnscAllocateMemory (SUBDOC_COUNT * sizeof(blobRegInfo));
+        if(blobData == NULL)
+		return;
 
     	int i;
-    	memset(blobData, 0, SUBDOC_COUNT * sizeof(blobRegInfo));
+        rc = memset_s(blobData, SUBDOC_COUNT * sizeof(blobRegInfo), 0, SUBDOC_COUNT * sizeof(blobRegInfo));
+        ERR_CHK(rc);
 
     	blobRegInfo *blobDataPointer = blobData;
 
 
     	for (i=0 ; i < SUBDOC_COUNT ; i++ )
     	{
-        	strncpy( blobDataPointer->subdoc_name, sub_docs[i], sizeof(blobDataPointer->subdoc_name)-1);
+                rc = strcpy_s( blobDataPointer->subdoc_name, sizeof(blobDataPointer->subdoc_name), sub_docs[i]);
+                if(rc != EOK)
+		{
+                    ERR_CHK(rc);
+                    return;
+                }
 
         	blobDataPointer++;
     	}
@@ -102,6 +129,8 @@ pErr advsec_webconfig_process_request(void *Data)
 {
 
     	pErr execRetVal = NULL;
+        errno_t rc = -1;
+        int ind = -1;
 
     	execRetVal = (pErr) AnscAllocateMemory (sizeof(Err));
     	if (execRetVal == NULL )
@@ -110,7 +139,8 @@ pErr advsec_webconfig_process_request(void *Data)
         	return execRetVal;
     	}
 
-    	memset(execRetVal,0,sizeof(Err));
+        rc = memset_s(execRetVal, sizeof(Err), 0, sizeof(Err));
+        ERR_CHK(rc);
 
     	execRetVal->ErrorCode = BLOB_EXEC_SUCCESS;
 
@@ -124,7 +154,9 @@ pErr advsec_webconfig_process_request(void *Data)
                 __FUNCTION__, advsec->param->fingerprint_enable,advsec->param->softflowd_enable,advsec->param->safebrowsing_enable,
                 advsec->param->parental_control_activate, advsec->param->privacy_protection_activate));
 
-            if ( strcmp(advsec->subdoc_name, ADVSEC_WEBCONFIG_SUBDOC_NAME) == 0 )
+            rc = strcmp_s(ADVSEC_WEBCONFIG_SUBDOC_NAME, strlen(ADVSEC_WEBCONFIG_SUBDOC_NAME), advsec->subdoc_name, &ind);
+            ERR_CHK(rc);
+            if((rc == EOK) && (ind == 0))
             {
                 int ret = advsec_webconfig_handle_blob(advsec->param);
 
