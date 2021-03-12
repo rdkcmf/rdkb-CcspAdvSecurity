@@ -18,3 +18,7 @@
 #SUBDIRS = core AdvSecurityDml AdvSecuritySsp test thirdparty
 #SUBDIRS = AdvSecurityDml AdvSecuritySsp test thirdparty
 SUBDIRS = AdvSecuritySsp AdvSecurityDml
+
+if WITH_GTEST_SUPPORT
+SUBDIRS += test
+endif
