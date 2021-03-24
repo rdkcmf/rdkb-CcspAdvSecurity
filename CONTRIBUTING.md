@@ -9,4 +9,4 @@ Please follow the [workflow](https://wiki.rdkcentral.com/display/CMF/Gerrit+Deve
 
 In order to contribute code, first-time users are requested to agree to the [license](https://wiki.rdkcentral.com/signup.action).
 
-There is a GitHub [mirror](https://github.com/rdkcmf/rdk-CcspAdvSecurity) of this project. Pull requests to the mirror will be ignored.
+There is a GitHub [mirror](https://github.com/rdkcmf/rdkb-CcspAdvSecurity) of this project. Pull requests to the mirror will be ignored.
