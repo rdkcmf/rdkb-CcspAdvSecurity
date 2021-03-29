@@ -87,6 +87,10 @@
 
 #define NUM_SYSEVENT_TYPES (sizeof(advSysEvent_type_table)/sizeof(advSysEvent_type_table[0]))
 
+#if defined(_PLATFORM_RASPBERRYPI_) || defined(_PLATFORM_TURRIS_)
+#include "ccsp_vendor.h"
+#endif
+
 extern ANSC_HANDLE bus_handle;
 extern char g_Subsystem[32];
 extern COSA_DATAMODEL_AGENT* g_pAdvSecAgent;
