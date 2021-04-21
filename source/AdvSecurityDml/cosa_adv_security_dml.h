@@ -382,4 +382,29 @@ PrivacyProtection_RFC_SetParamBoolValue
         char*                       ParamName,
         BOOL                        bValue
     );
+/***********************************************************************
+
+ APIs for Object:
+
+    X_RDKCENTRAL-COM_RFC.Feature.DeviceFingerPrintICMPv6.
+
+    *  DeviceFingerPrintICMPv6_RFC_GetParamBoolValue
+    *  DeviceFingerPrintICMPv6_RFC_SetParamBoolValue
+
+***********************************************************************/
+BOOL
+DeviceFingerPrintICMPv6_RFC_GetParamBoolValue
+    (
+        ANSC_HANDLE                 hInsContext,
+        char*                       ParamName,
+        BOOL*                       pBool
+    );
+
+BOOL
+DeviceFingerPrintICMPv6_RFC_SetParamBoolValue
+    (
+        ANSC_HANDLE                 hInsContext,
+        char*                       ParamName,
+        BOOL                        bValue
+    );
 #endif //_COSA_ADV_SECURITY_DML_H

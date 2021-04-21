@@ -79,7 +79,10 @@ COSA_Init
 
     pPlugInfo->RegisterFunction(pPlugInfo->hContext, "PrivacyProtection_RFC_GetParamBoolValue", PrivacyProtection_RFC_GetParamBoolValue);
     pPlugInfo->RegisterFunction(pPlugInfo->hContext, "PrivacyProtection_RFC_SetParamBoolValue", PrivacyProtection_RFC_SetParamBoolValue);
-    
+
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "DeviceFingerPrintICMPv6_RFC_GetParamBoolValue", DeviceFingerPrintICMPv6_RFC_GetParamBoolValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "DeviceFingerPrintICMPv6_RFC_SetParamBoolValue", DeviceFingerPrintICMPv6_RFC_SetParamBoolValue);
+
     /* Create Object for Settings */
     g_pAdvSecAgent = (PCOSA_DATAMODEL_AGENT)CosaSecurityCreate();
 

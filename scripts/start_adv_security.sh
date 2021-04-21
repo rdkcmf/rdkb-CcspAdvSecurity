@@ -112,6 +112,14 @@ then
         echo_t ${RABID_RUNNING_AS_NON_ROOT_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
     fi
 
+    if [ "$BOX_TYPE" != "XB3" ] && [ "$BOX_TYPE" != "XF3" ]; then
+        if [ "$DF_ICMPv6_RFC_ENABLED" = "1" ]; then
+            enable_icmpv6
+        else
+            disable_icmpv6
+        fi
+    fi
+
     exit 0
 elif [ "$1" = "-disable" ]
 then
@@ -138,7 +146,13 @@ then
     fi
 
     if [ -f $ADVSEC_AGENT_SHUTDOWN ]; then
-	rm $ADVSEC_AGENT_SHUTDOWN
+        rm $ADVSEC_AGENT_SHUTDOWN
+    fi
+
+    if [ "$BOX_TYPE" != "XB3" ] && [ "$BOX_TYPE" != "XF3" ]; then
+        if [ -f $ADVSEC_DF_ICMPv6_ENABLED_PATH ]; then
+            rm $ADVSEC_DF_ICMPv6_ENABLED_PATH
+        fi
     fi
 
     exit 0
@@ -272,6 +286,27 @@ privacy_protection_setup()
     fi
 }
 
+enable_icmpv6()
+{
+    touch $ADVSEC_DF_ICMPv6_ENABLED_PATH
+    echo_t ${DF_ICMPv6_RFC_ENABLED_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
+
+    if [ "$1" = "FR" ]; then
+        echo_t "Rabid triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
+        sysevent set firewall-restart
+    fi
+}
+
+disable_icmpv6()
+{
+    rm -f $ADVSEC_DF_ICMPv6_ENABLED_PATH
+    echo_t ${DF_ICMPv6_RFC_DISABLED_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
+
+    if [ "$1" = "FR" ]; then
+        echo_t "Rabid triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
+        sysevent set firewall-restart
+    fi
+}
 
 if [ "$1" = "-enable" ] || [ "$1" = "-disable" ]
 then
@@ -376,3 +411,12 @@ then
         echo_t ${RABID_RUNNING_AS_ROOT_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
     fi
 fi
+
+if [ "$1" = "-enableICMP6" ]; then
+   enable_icmpv6 "FR"
+fi
+
+if [ "$1" = "-disableICMP6" ]; then
+   disable_icmpv6 "FR"
+fi
+

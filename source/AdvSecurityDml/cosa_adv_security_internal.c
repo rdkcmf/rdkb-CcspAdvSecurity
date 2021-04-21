@@ -108,6 +108,7 @@ static char *g_RabidDNSCacheSize = "Advsecurity_RabidDNSCacheSize";
 
 static char *g_PrivacyProtectionEnabled = "Adv_PrivProtRFCEnable";
 static char *g_AdvParentalControlEnabled = "Adv_PCRFCEnable";
+static char *g_DeviceFingerPrintICMPv6Enabled = "Adv_DFICMPv6RFCEnable";
 
 static pthread_mutex_t logMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t logCond = PTHREAD_COND_INITIALIZER;
@@ -323,6 +324,15 @@ CosaSecurityCreate
         return  (ANSC_HANDLE)NULL;
     }
 
+    pMyObject->pDFIcmpv6_RFC = (PCOSA_DATAMODEL_DEVICEFINGERPRINTICMPv6_RFC)AnscAllocateMemory(sizeof(COSA_DATAMODEL_DEVICEFINGERPRINTICMPv6_RFC));
+
+    if ( !pMyObject->pDFIcmpv6_RFC )
+    {
+        CcspTraceInfo(("%s exit ERROR \n", __FUNCTION__));
+        AnscFreeMemory((ANSC_HANDLE)pMyObject);
+        return  (ANSC_HANDLE)NULL;
+    }
+
     if (syscfg_init() != 0) {
         CcspTraceError(("%s: syscfg_init error", __FUNCTION__));
     	AnscFreeMemory((ANSC_HANDLE)pMyObject);
@@ -348,6 +358,7 @@ CosaSecurityInitialize
     ULONG                   ValuePP = 0;
     ULONG                   ValueAPC_RFC = 0;
     ULONG                   ValuePP_RFC = 0;
+    ULONG                   ValueDFIcmpv6_RFC = 0;
     ULONG                   ValueRML = 0;
     ULONG                   ValueRMCS = 0;
     ULONG                   ValueRDCS = 0;
@@ -537,6 +548,7 @@ CosaSecurityInitialize
     CosaGetSysCfgUlong(g_PrivacyProtection, &ValuePP);
     CosaGetSysCfgUlong(g_AdvParentalControlEnabled, &ValueAPC_RFC);
     CosaGetSysCfgUlong(g_PrivacyProtectionEnabled, &ValuePP_RFC);
+    CosaGetSysCfgUlong(g_DeviceFingerPrintICMPv6Enabled, &ValueDFIcmpv6_RFC);
     CosaGetSysCfgUlong(g_RabidMemoryLimit, &ValueRML);
     CosaGetSysCfgUlong(g_RabidMacCacheSize, &ValueRMCS);
     CosaGetSysCfgUlong(g_RabidDNSCacheSize, &ValueRDCS);
@@ -548,6 +560,7 @@ CosaSecurityInitialize
     g_pAdvSecAgent->pPrivProt->bEnable = ValuePP;
     g_pAdvSecAgent->pAdvPC_RFC->bEnable = ValueAPC_RFC;
     g_pAdvSecAgent->pPrivProt_RFC->bEnable = ValuePP_RFC;
+    g_pAdvSecAgent->pDFIcmpv6_RFC->bEnable = ValueDFIcmpv6_RFC;
     g_pAdvSecAgent->pRabid->uMemoryLimit = ValueRML;
     g_pAdvSecAgent->pRabid->uMacCacheSize = ValueRMCS;
     g_pAdvSecAgent->pRabid->uDNSCacheSize = ValueRDCS;
@@ -1709,4 +1722,59 @@ CosaPrivacyProtectionDeInit
 
     CcspTraceWarning (("AdTrackerBlockingRFCEnable:FALSE\n"));
     return ANSC_STATUS_SUCCESS;
+}
+
+ANSC_STATUS CosaAdvDFIcmpv6Init(ANSC_HANDLE hThisObject)
+{
+    UNREFERENCED_PARAMETER(hThisObject);
+    ANSC_STATUS  returnStatus = ANSC_STATUS_SUCCESS;
+    char cmd[COMMAND_MAX] = {0};
+    errno_t rc = -1;
+
+    returnStatus = CosaSetSysCfgUlong(g_DeviceFingerPrintICMPv6Enabled, 1);
+    if (ANSC_STATUS_SUCCESS != returnStatus)
+    {
+        CcspTraceWarning (("%s: syscfg_set failure.", __FUNCTION__));
+        return returnStatus;
+    }
+
+    g_pAdvSecAgent->pDFIcmpv6_RFC->bEnable = TRUE;
+
+    sprintf(cmd, "%s", TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -enableICMP6 &");
+    rc = system(cmd);
+    if (!WIFEXITED(rc) || WEXITSTATUS(rc) != 0)
+    {
+       CcspTraceError(("%s: enable failed rc = %d\n", __FUNCTION__, WEXITSTATUS(rc)));
+    }
+
+    CcspTraceWarning (("AdvDFIcmpv6_RFCEnable:TRUE\n"));
+    return returnStatus;
+}
+
+
+ANSC_STATUS CosaAdvDFIcmpv6DeInit(ANSC_HANDLE hThisObject)
+{
+    UNREFERENCED_PARAMETER(hThisObject);
+    ANSC_STATUS  returnStatus = ANSC_STATUS_SUCCESS;
+    char cmd[COMMAND_MAX] = {0};
+    errno_t rc = -1;
+
+    returnStatus = CosaSetSysCfgUlong(g_DeviceFingerPrintICMPv6Enabled, 0);
+    if (ANSC_STATUS_SUCCESS != returnStatus)
+    {
+        CcspTraceWarning (("%s: syscfg_set failure.", __FUNCTION__));
+        return returnStatus;
+    }
+
+    g_pAdvSecAgent->pDFIcmpv6_RFC->bEnable = FALSE;
+
+    sprintf(cmd, "%s", TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -disableICMP6 &");
+    rc = system(cmd);
+    if (!WIFEXITED(rc) || WEXITSTATUS(rc) != 0)
+    {
+       CcspTraceError(("%s: disable failed rc = %d\n", __FUNCTION__, WEXITSTATUS(rc)));
+    }
+
+    CcspTraceWarning (("AdvDFIcmpv6_RFCEnable:FALSE\n"));
+    return returnStatus;
 }

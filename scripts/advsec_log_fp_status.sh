@@ -89,6 +89,15 @@ check_status()
         fi
         print_telemetry_log $ADV_PARENTAL_CONTROL_NUMBER_OF_ACTIVE_MACS_PRINT$_ACTIVE_MACS_COUNT ${ADVSEC_AGENT_LOG_PATH}
     fi
+
+    if [ "$BOX_TYPE" != "XB3" ] && [ "$BOX_TYPE" != "XF3" ]; then
+        if [ "$DF_ICMPv6_RFC_ENABLED" = "1" ]; then
+            print_telemetry_log ${DF_ICMPv6_RFC_ENABLED_LOG} ${ADVSEC_AGENT_LOG_PATH}
+        else
+            print_telemetry_log ${DF_ICMPv6_RFC_DISABLED_LOG} ${ADVSEC_AGENT_LOG_PATH}
+        fi
+    fi
+
 }
 
 print_telemetry_log()

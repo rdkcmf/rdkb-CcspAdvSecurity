@@ -230,6 +230,22 @@
                     <writable>true</writable>
                   </parameter>
                 </parameters>
+              </object>
+            <object>
+              <name>DeviceFingerPrintICMPv6</name>
+              <objectType>object</objectType>
+                <functions>
+                  <func_GetParamBoolValue>DeviceFingerPrintICMPv6_RFC_GetParamBoolValue</func_GetParamBoolValue>
+                  <func_SetParamBoolValue>DeviceFingerPrintICMPv6_RFC_SetParamBoolValue</func_SetParamBoolValue>
+                </functions>
+                <parameters>
+                  <parameter>
+                    <name>Enable</name>
+                    <type>boolean</type>
+                    <syntax>bool</syntax>
+                    <writable>true</writable>
+                  </parameter>
+                </parameters>
             </object>
             </objects>
         </object>

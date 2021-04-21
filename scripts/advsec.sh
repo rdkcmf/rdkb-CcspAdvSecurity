@@ -59,6 +59,9 @@ export ADVSEC_ASSOC_SUCCESS=/tmp/advsec_assoc_success
 export ADVSEC_IPSETLIST_CREATED=/tmp/advsec_ipsetlist_created
 export ADVSEC_DEVICE_CERT=/tmp/device.pem
 export ADV_PARENTAL_CONTROL_ACTIVEMACSFILE=/tmp/activemacs.json
+if [ "$BOX_TYPE" != "XB3" ] && [ "$BOX_TYPE" != "XF3" ]; then
+export ADVSEC_DF_ICMPv6_ENABLED_PATH=/tmp/advsec_df_icmpv6_enabled
+fi
 
 export DF_ENABLED=`syscfg get Advsecurity_DeviceFingerPrint`
 export ADVSEC_SB_ENABLED=`syscfg get Advsecurity_SafeBrowsing`
@@ -68,6 +71,9 @@ export PRIVACY_PROTECTION_ENABLED=`syscfg get Adv_PPActivate`
 export NON_ROOT_SUPPORT=`syscfg get NonRootSupport`
 export ADV_PC_RFC_ENABLED=`syscfg get Adv_PCRFCEnable`
 export PRIVACY_PROTECTION_RFC_ENABLED=`syscfg get Adv_PrivProtRFCEnable`
+if [ "$BOX_TYPE" != "XB3" ] && [ "$BOX_TYPE" != "XF3" ]; then
+export DF_ICMPv6_RFC_ENABLED=`syscfg get Adv_DFICMPv6RFCEnable`
+fi
 
 export ADV_PARENTAL_CONTROL_ACTIVATED_LOG=ADVANCED_PARENTAL_CONTROL_ACTIVATED
 export ADV_PARENTAL_CONTROL_DEACTIVATED_LOG=ADVANCED_PARENTAL_CONTROL_DEACTIVATED
@@ -77,6 +83,10 @@ export PRIVACY_PROTECTION_RFC_ENABLED_LOG=PRIVACY_PROTECTION_RFC_STATUS_ENABLED
 export PRIVACY_PROTECTION_RFC_DISABLED_LOG=PRIVACY_PROTECTION_RFC_STATUS_DISABLED
 export RABID_RUNNING_AS_NON_ROOT_LOG=RABID_RUNNING_AS_NON_ROOT
 export RABID_RUNNING_AS_ROOT_LOG=RABID_RUNNING_AS_ROOT
+if [ "$BOX_TYPE" != "XB3" ] && [ "$BOX_TYPE" != "XF3" ]; then
+export DF_ICMPv6_RFC_ENABLED_LOG=DeviceFingerPrintICMPv6.Enabled
+export DF_ICMPv6_RFC_DISABLED_LOG=DeviceFingerPrintICMPv6.Disabled
+fi
 
 export ADVSEC_SAFEBRO_SETTING="${RW_DIR}/safebro.json"
 
