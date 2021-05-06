@@ -494,3 +494,8 @@ fi
 if [ "$1" = "-disableWSDiscovery" ]; then
    disable_wsdiscovery "FR"
 fi
+
+if [ "$1" = "-restartRabid" ] && [ -e ${ADVSEC_DF_ENABLED_PATH} ]
+then
+    advsec_restart_rabid $2
+fi

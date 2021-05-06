@@ -507,16 +507,8 @@ advsec_cleanup_config_rabid() {
 advsec_restart_rabid() {
     if [ ! -f $ADVSEC_INITIALIZING ]; then
         touch $ADVSEC_INITIALIZING
-        if [ "$1" = "OnFirewallRestart" ]; then
-            echo_t "[ADVSEC] Restarting Rabid due to firewall-restart..." >> ${ADVSEC_AGENT_LOG_PATH}
-        elif [ "$1" = "OnHighRSS" ]; then
-            echo_t "[ADVSEC] Restarting Rabid due to high RSS..." >> ${ADVSEC_AGENT_LOG_PATH}
-        elif [ "$1" = "NonRootSupportToggle" ]; then
-            echo_t "[ADVSEC] Restarting Rabid due to NonRoot Support Toggle..." >> ${ADVSEC_AGENT_LOG_PATH}
-        elif [ "$1" = "OTM_RFC_Enabled" ]; then
-            echo_t "[ADVSEC] Restarting Rabid due to OTM RFC Enable..." >> ${ADVSEC_AGENT_LOG_PATH}
-        elif [ "$1" = "OTM_RFC_Disabled" ]; then
-            echo_t "[ADVSEC] Restarting Rabid due to OTM RFC Disable..." >> ${ADVSEC_AGENT_LOG_PATH}
+        if [ "$1" != "" ]; then
+            echo_t "[ADVSEC] Restarting Rabid due to $1..." >> ${ADVSEC_AGENT_LOG_PATH}
         else
             echo_t "[ADVSEC] Restarting Rabid due to Selfheal..." >> ${ADVSEC_AGENT_LOG_PATH}
         fi

@@ -111,7 +111,7 @@ log_agent_mem_statistics()
 	echo "######################################################" >> $ADVSEC_AGENT_LOG_PATH
 
 	if [ "$total_rss_mem" -ge "$MAX_RSS_THRESHOLD" ]; then
-		advsec_restart_rabid "OnHighRSS"
+		advsec_restart_rabid "HighRSS"
 		exit
 	fi
 
@@ -119,7 +119,7 @@ log_agent_mem_statistics()
 		lowfree_mem=`cat /proc/meminfo | grep -i lowfree | awk '{ print $2 }'`
 		if [ $lowfree_mem -le $LOWFREE_MEM_THRESHOLD ]; then
 			echo_t "ADVSEC Lowfree Memory threshold recovery" >> $ADVSEC_AGENT_LOG_PATH
-			advsec_restart_rabid "OnLowFreeMem"
+			advsec_restart_rabid "LowFreeMem"
 			exit
 		fi
 	fi

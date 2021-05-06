@@ -49,12 +49,15 @@
 #include <autoconf.h>
 #endif
 
-#define ADVSEC_WAIT_FOR_TIMEOUT (60 * 60)
+/* sysevent definations */
 #define ADVSEC_SYSEVENT_RABID_NONROOT_RFC_EVENT "NonRootSupport"
 #define ADVSEC_SYSEVENT_BRIDGE_MODE_EVENT "bridge_mode"
 #define ADVSEC_SYSEVENT_CLOUD_HOST_IP "advsec_host_ip"
+#define ADVSEC_SYSEVENT_MAP_T_CONFIG_CHANGED_EVENT "mapt_config_flag"
+
+#define ADVSEC_WAIT_FOR_TIMEOUT (60 * 60)
 #define MAX_VALUE 32
-#define COMMAND_MAX 128
+#define COMMAND_MAX 256
 #define BUFFERSIZE_MAX  256
 #define ADVSEC_LOOKUP_EXCEED_COUNT_FILE "/tmp/advsec_lkup_exceed_cnt"
 
@@ -122,6 +125,7 @@ enum advSysEvent_e{
     SYSEVENT_BRIDGE_MODE_EVENT,
     SYSEVENT_CLOUD_HOST_IP,
     SYSEVENT_RABID_NONROOT_RFC_EVENT,
+    SYSEVENT_MAP_T_CONFIG_CHANGED_EVENT,
 };
 
 /*Structure defined to get the AdvSysEvent Noti type from the given Event names */
@@ -134,7 +138,8 @@ typedef struct advSysEvent_pair{
 ADV_SYSEVENT_PAIR advSysEvent_type_table[] = {
   { ADVSEC_SYSEVENT_BRIDGE_MODE_EVENT,              SYSEVENT_BRIDGE_MODE_EVENT            },
   { ADVSEC_SYSEVENT_CLOUD_HOST_IP,                  SYSEVENT_CLOUD_HOST_IP                },
-  { ADVSEC_SYSEVENT_RABID_NONROOT_RFC_EVENT,        SYSEVENT_RABID_NONROOT_RFC_EVENT      }
+  { ADVSEC_SYSEVENT_RABID_NONROOT_RFC_EVENT,        SYSEVENT_RABID_NONROOT_RFC_EVENT      },
+  { ADVSEC_SYSEVENT_MAP_T_CONFIG_CHANGED_EVENT,     SYSEVENT_MAP_T_CONFIG_CHANGED_EVENT   },
 };
 
 int get_advSysEvent_type_from_name(char *name, enum advSysEvent_e *type_ptr)
@@ -1329,7 +1334,7 @@ ULONG CosaAdvSecGetLookupTimeoutExceededCount()
 static BOOL AdvsecSysEventHandlerStarted=FALSE;
 static int sysevent_fd = 0;
 static token_t sysEtoken;
-static async_id_t async_id[3];
+static async_id_t async_id[4];
 
 enum {SYS_EVENT_ERROR=-1, SYS_EVENT_OK, SYS_EVENT_TIMEOUT, SYS_EVENT_HANDLE_EXIT, SYS_EVENT_RECEIVED=0x10};
 
@@ -1365,6 +1370,13 @@ int advsec_sysevent_init(void)
     //register rabid non-root event
     sysevent_set_options(sysevent_fd, sysEtoken, ADVSEC_SYSEVENT_RABID_NONROOT_RFC_EVENT, TUPLE_FLAG_EVENT);
     rc = sysevent_setnotification(sysevent_fd, sysEtoken, ADVSEC_SYSEVENT_RABID_NONROOT_RFC_EVENT, &async_id[2]);
+    if (rc) {
+       return(SYS_EVENT_ERROR);
+    }
+
+    //register MAP-T config change event
+    sysevent_set_options(sysevent_fd, sysEtoken, ADVSEC_SYSEVENT_MAP_T_CONFIG_CHANGED_EVENT, TUPLE_FLAG_EVENT);
+    rc = sysevent_setnotification(sysevent_fd, sysEtoken, ADVSEC_SYSEVENT_MAP_T_CONFIG_CHANGED_EVENT, &async_id[3]);
     if (rc) {
        return(SYS_EVENT_ERROR);
     }
@@ -1462,6 +1474,14 @@ void advsec_handle_sysevent_notification(char *event, char *val)
                 system(cmd);
             }
         }
+        else if(type == SYSEVENT_MAP_T_CONFIG_CHANGED_EVENT)
+        {
+            char cmd[COMMAND_MAX];
+            memset(cmd, 0, sizeof(cmd));
+
+            AnscCopyString(cmd, TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -restartRabid MAPTConfigChanged &");
+            system(cmd);
+        }
     }
 
     return;
@@ -1503,6 +1523,7 @@ int advsec_sysvent_close(void)
     sysevent_rmnotification(sysevent_fd, sysEtoken, async_id[0]);
     sysevent_rmnotification(sysevent_fd, sysEtoken, async_id[1]);
     sysevent_rmnotification(sysevent_fd, sysEtoken, async_id[2]);
+    sysevent_rmnotification(sysevent_fd, sysEtoken, async_id[3]);
 
     /* close this session with syseventd */
     sysevent_close(sysevent_fd, sysEtoken);
