@@ -423,12 +423,6 @@ advsec_is_alive() {
 	if [ "$1" = "rabid" ]
 	then
 		PROCESS_PID=`pidof "rabid"`
-		if [ "${PROCESS_PID}" != "" ]; then
-			check=`advsec_rabid_restart_needed`
-			if [ "${check}" = "1" ] ; then
-				PROCESS_PID=""
-			fi
-		fi
 	fi
 	echo $PROCESS_PID
 }
