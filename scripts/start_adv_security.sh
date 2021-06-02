@@ -53,6 +53,8 @@ then
         rm $DAEMONS_HIBERNATING
     fi
 
+    wait_for_lanipv6
+
     start_rabid_services
 
     touch $ADVSEC_INITIALIZED
