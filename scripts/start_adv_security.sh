@@ -316,8 +316,10 @@ fi
 if [ "$1" = "-start" ] || [ "$1" = "-stop" ]
 then
     start_advanced_security $1 $2 $3
-    echo_t "Rabid triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
-    sysevent set firewall-restart
+    if [ "$BOX_TYPE" == "XB3" ] || [ "$BOX_TYPE" == "XF3" ]; then
+        echo_t "Rabid triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
+        sysevent set firewall-restart
+    fi
 fi
 
 if [ "$1" = "-startAdvPC" ] || [ "$1" = "-stopAdvPC" ]
@@ -326,8 +328,10 @@ then
         echo_t "Rabid cannot activate AdvParentalControl feature due to RFC is disabled" >> ${ADVSEC_AGENT_LOG_PATH}
     else
         advanced_parental_control_setup $1
-        echo_t "Rabid triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
-        sysevent set firewall-restart
+        if [ "$BOX_TYPE" == "XB3" ] || [ "$BOX_TYPE" == "XF3" ]; then
+            echo_t "Rabid triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
+            sysevent set firewall-restart
+        fi
     fi
 fi
 
@@ -337,8 +341,10 @@ then
         echo_t "Rabid cannot activate PrivacyProtection feature due to RFC is disabled" >> ${ADVSEC_AGENT_LOG_PATH}
     else
         privacy_protection_setup $1
-        echo_t "Rabid triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
-        sysevent set firewall-restart
+        if [ "$BOX_TYPE" == "XB3" ] || [ "$BOX_TYPE" == "XF3" ]; then
+            echo_t "Rabid triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
+            sysevent set firewall-restart
+        fi
     fi
 fi
 
@@ -392,8 +398,10 @@ then
         fi
     fi
 
-    echo_t "Rabid triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
-    sysevent set firewall-restart
+    if [ "$BOX_TYPE" == "XB3" ] || [ "$BOX_TYPE" == "XF3" ]; then
+        echo_t "Rabid triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
+        sysevent set firewall-restart
+    fi
 
 fi
 
