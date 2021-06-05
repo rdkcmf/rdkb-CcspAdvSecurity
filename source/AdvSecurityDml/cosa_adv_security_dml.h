@@ -407,4 +407,54 @@ DeviceFingerPrintICMPv6_RFC_SetParamBoolValue
         char*                       ParamName,
         BOOL                        bValue
     );
+/***********************************************************************
+
+ APIs for Object:
+
+    X_RDKCENTRAL-COM_RFC.Feature.WS-Discovery_Analysis.
+
+    *  WS_Discovery_Analysis_RFC_GetParamBoolValue
+    *  WS_Discovery_Analysis_RFC_SetParamBoolValue
+
+***********************************************************************/
+BOOL
+WS_Discovery_Analysis_RFC_GetParamBoolValue
+    (
+        ANSC_HANDLE                 hInsContext,
+        char*                       ParamName,
+        BOOL*                       pBool
+    );
+
+BOOL
+WS_Discovery_Analysis_RFC_SetParamBoolValue
+    (
+        ANSC_HANDLE                 hInsContext,
+        char*                       ParamName,
+        BOOL                        bValue
+    );
+/***********************************************************************
+
+ APIs for Object:
+
+    X_RDKCENTRAL-COM_RFC.Feature.AdvancedSecurityOTM.
+
+    *  AdvancedSecurityOTM_RFC_GetParamBoolValue
+    *  AdvancedSecurityOTM_RFC_SetParamBoolValue
+
+***********************************************************************/
+BOOL
+AdvancedSecurityOTM_RFC_GetParamBoolValue
+    (
+        ANSC_HANDLE                 hInsContext,
+        char*                       ParamName,
+        BOOL*                       pBool
+    );
+
+BOOL
+AdvancedSecurityOTM_RFC_SetParamBoolValue
+    (
+        ANSC_HANDLE                 hInsContext,
+        char*                       ParamName,
+        BOOL                        bValue
+    );
 #endif //_COSA_ADV_SECURITY_DML_H

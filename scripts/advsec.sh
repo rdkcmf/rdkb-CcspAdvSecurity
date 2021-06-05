@@ -61,6 +61,7 @@ export ADVSEC_DEVICE_CERT=/tmp/device.pem
 export ADV_PARENTAL_CONTROL_ACTIVEMACSFILE=/tmp/activemacs.json
 if [ "$BOX_TYPE" != "XB3" ] && [ "$BOX_TYPE" != "XF3" ]; then
 export ADVSEC_DF_ICMPv6_ENABLED_PATH=/tmp/advsec_df_icmpv6_enabled
+export ADVSEC_WS_DISCOVERY_ENABLED_PATH=/tmp/advsec_ws_discovery_enabled
 fi
 
 export DF_ENABLED=`syscfg get Advsecurity_DeviceFingerPrint`
@@ -73,6 +74,8 @@ export ADV_PC_RFC_ENABLED=`syscfg get Adv_PCRFCEnable`
 export PRIVACY_PROTECTION_RFC_ENABLED=`syscfg get Adv_PrivProtRFCEnable`
 if [ "$BOX_TYPE" != "XB3" ] && [ "$BOX_TYPE" != "XF3" ]; then
 export DF_ICMPv6_RFC_ENABLED=`syscfg get Adv_DFICMPv6RFCEnable`
+export ADVSEC_OTM_RFC_ENABLED=`syscfg get Adv_AdvSecOTMRFCEnable`
+export ADVSEC_WS_DISCOVERY_RFC_ENABLED=`syscfg get Adv_WSDisAnaRFCEnable`
 fi
 
 export ADV_PARENTAL_CONTROL_ACTIVATED_LOG=ADVANCED_PARENTAL_CONTROL_ACTIVATED
@@ -86,6 +89,10 @@ export RABID_RUNNING_AS_ROOT_LOG=RABID_RUNNING_AS_ROOT
 if [ "$BOX_TYPE" != "XB3" ] && [ "$BOX_TYPE" != "XF3" ]; then
 export DF_ICMPv6_RFC_ENABLED_LOG=DeviceFingerPrintICMPv6.Enabled
 export DF_ICMPv6_RFC_DISABLED_LOG=DeviceFingerPrintICMPv6.Disabled
+export ADV_OTM_RFC_ENABLE_LOG=ADVANCE_SECURITY_OTM_ENABLED
+export ADV_OTM_RFC_DISABLE_LOG=ADVANCE_SECURITY_OTM_DISABLED
+export ADV_WS_DISCOVERY_RFC_ENABLE_LOG=ADVANCE_SECURITY_WS_DISCOVERY_ENABLED
+export ADV_WS_DISCOVERY_RFC_DISABLE_LOG=ADVANCE_SECURITY_WS_DISCOVERY_DISABLED
 fi
 
 export ADVSEC_SAFEBRO_SETTING="${RW_DIR}/safebro.json"
@@ -506,6 +513,10 @@ advsec_restart_rabid() {
             echo_t "[ADVSEC] Restarting Rabid due to high RSS..." >> ${ADVSEC_AGENT_LOG_PATH}
         elif [ "$1" = "NonRootSupportToggle" ]; then
             echo_t "[ADVSEC] Restarting Rabid due to NonRoot Support Toggle..." >> ${ADVSEC_AGENT_LOG_PATH}
+        elif [ "$1" = "OTM_RFC_Enabled" ]; then
+            echo_t "[ADVSEC] Restarting Rabid due to OTM RFC Enable..." >> ${ADVSEC_AGENT_LOG_PATH}
+        elif [ "$1" = "OTM_RFC_Disabled" ]; then
+            echo_t "[ADVSEC] Restarting Rabid due to OTM RFC Disable..." >> ${ADVSEC_AGENT_LOG_PATH}
         else
             echo_t "[ADVSEC] Restarting Rabid due to Selfheal..." >> ${ADVSEC_AGENT_LOG_PATH}
         fi

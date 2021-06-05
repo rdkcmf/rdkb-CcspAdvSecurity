@@ -84,6 +84,24 @@ then
         privacy_protection_setup "-startPrivProt"
     fi
 
+    if [ "$BOX_TYPE" != "XB3" ] && [ "$BOX_TYPE" != "XF3" ]; then
+        if [ "$DF_ICMPv6_RFC_ENABLED" = "1" ]; then
+            enable_icmpv6
+        else
+            disable_icmpv6
+        fi
+        if [ "$ADVSEC_WS_DISCOVERY_RFC_ENABLED" = "1" ]; then
+            enable_wsdiscovery
+        else
+            disable_wsdiscovery
+        fi
+        if [ "$ADVSEC_OTM_RFC_ENABLED" = "1" ]; then
+            enable_otm
+        else
+            disable_otm
+        fi
+    fi
+
     rm $ADVSEC_INITIALIZING
 
     echo_t "Rabid triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
@@ -110,14 +128,6 @@ then
         echo_t ${RABID_RUNNING_AS_ROOT_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
     elif [ "$RABID_USER" = "_rabid" ]; then
         echo_t ${RABID_RUNNING_AS_NON_ROOT_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
-    fi
-
-    if [ "$BOX_TYPE" != "XB3" ] && [ "$BOX_TYPE" != "XF3" ]; then
-        if [ "$DF_ICMPv6_RFC_ENABLED" = "1" ]; then
-            enable_icmpv6
-        else
-            disable_icmpv6
-        fi
     fi
 
     exit 0
@@ -152,6 +162,9 @@ then
     if [ "$BOX_TYPE" != "XB3" ] && [ "$BOX_TYPE" != "XF3" ]; then
         if [ -f $ADVSEC_DF_ICMPv6_ENABLED_PATH ]; then
             rm $ADVSEC_DF_ICMPv6_ENABLED_PATH
+        fi
+        if [ -f $ADVSEC_WS_DISCOVERY_ENABLED_PATH ]; then
+            rm $ADVSEC_WS_DISCOVERY_ENABLED_PATH
         fi
     fi
 
@@ -308,6 +321,44 @@ disable_icmpv6()
     fi
 }
 
+enable_wsdiscovery()
+{
+    touch $ADVSEC_WS_DISCOVERY_ENABLED_PATH
+    echo_t ${ADV_WS_DISCOVERY_RFC_ENABLE_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
+
+    if [ "$1" = "FR" ]; then
+        echo_t "Rabid triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
+        sysevent set firewall-restart
+    fi
+}
+
+disable_wsdiscovery()
+{
+    rm -f $ADVSEC_WS_DISCOVERY_ENABLED_PATH
+    echo_t ${ADV_WS_DISCOVERY_RFC_DISABLE_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
+
+    if [ "$1" = "FR" ]; then
+        echo_t "Rabid triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
+        sysevent set firewall-restart
+    fi
+}
+
+enable_otm()
+{
+   echo_t ${ADV_OTM_RFC_ENABLE_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
+   if [ "$1" = "RR" ]; then
+       advsec_restart_rabid "OTM_RFC_Enabled"
+   fi
+}
+
+disable_otm()
+{
+   echo_t ${ADV_OTM_RFC_DISABLE_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
+   if [ "$1" = "RR" ]; then
+       advsec_restart_rabid "OTM_RFC_Disabled"
+   fi
+}
+
 if [ "$1" = "-enable" ] || [ "$1" = "-disable" ]
 then
     start_device_services $1 $2 $3
@@ -428,3 +479,18 @@ if [ "$1" = "-disableICMP6" ]; then
    disable_icmpv6 "FR"
 fi
 
+if [ "$1" = "-enableOTM" ]; then
+    enable_otm "RR"
+fi
+
+if [ "$1" = "-disableOTM" ]; then
+    disable_otm "RR"
+fi
+
+if [ "$1" = "-enableWSDiscovery" ]; then
+   enable_wsdiscovery "FR"
+fi
+
+if [ "$1" = "-disableWSDiscovery" ]; then
+   disable_wsdiscovery "FR"
+fi
