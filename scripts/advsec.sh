@@ -580,7 +580,7 @@ wait_for_lanipv6()
         if [ "$lanipv6addr" = "" ]; then
              echo_t "Waiting for LAN ipv6 address..." >> ${ADVSEC_AGENT_LOG_PATH}
              sleep 10
-             ((ipv6_retry_limit--))
+             ipv6_retry_limit=$(expr $ipv6_retry_limit - 1)
         else
              echo_t "LAN IPv6 Address: $lanipv6addr" >> ${ADVSEC_AGENT_LOG_PATH}
              break
