@@ -50,7 +50,7 @@
 #endif
 
 /* sysevent definations */
-#define ADVSEC_SYSEVENT_RABID_NONROOT_RFC_EVENT "NonRootSupport"
+#define ADVSEC_SYSEVENT_AGENT_NONROOT_RFC_EVENT "NonRootSupport"
 #define ADVSEC_SYSEVENT_BRIDGE_MODE_EVENT "bridge_mode"
 #define ADVSEC_SYSEVENT_CLOUD_HOST_IP "advsec_host_ip"
 #define ADVSEC_SYSEVENT_MAP_T_CONFIG_CHANGED_EVENT "mapt_config_flag"
@@ -124,7 +124,7 @@ static BOOL WaitForLoggerTimeout(ULONG period);
 enum advSysEvent_e{
     SYSEVENT_BRIDGE_MODE_EVENT,
     SYSEVENT_CLOUD_HOST_IP,
-    SYSEVENT_RABID_NONROOT_RFC_EVENT,
+    SYSEVENT_AGENT_NONROOT_RFC_EVENT,
     SYSEVENT_MAP_T_CONFIG_CHANGED_EVENT,
 };
 
@@ -138,7 +138,7 @@ typedef struct advSysEvent_pair{
 ADV_SYSEVENT_PAIR advSysEvent_type_table[] = {
   { ADVSEC_SYSEVENT_BRIDGE_MODE_EVENT,              SYSEVENT_BRIDGE_MODE_EVENT            },
   { ADVSEC_SYSEVENT_CLOUD_HOST_IP,                  SYSEVENT_CLOUD_HOST_IP                },
-  { ADVSEC_SYSEVENT_RABID_NONROOT_RFC_EVENT,        SYSEVENT_RABID_NONROOT_RFC_EVENT      },
+  { ADVSEC_SYSEVENT_AGENT_NONROOT_RFC_EVENT,        SYSEVENT_AGENT_NONROOT_RFC_EVENT      },
   { ADVSEC_SYSEVENT_MAP_T_CONFIG_CHANGED_EVENT,     SYSEVENT_MAP_T_CONFIG_CHANGED_EVENT   },
 };
 
@@ -183,7 +183,7 @@ static BOOL Is_Device_Finger_Print_Enabled_Completed()
     return 0;
 }
 
-static BOOL Is_Rabid_Initialization_Completed()
+static BOOL Is_Agent_Initialization_Completed()
 {
     FILE *file = NULL;
     if ((file = fopen(ADVSEC_INITIALIZED_FILE_PATH, "r")))
@@ -1053,9 +1053,9 @@ ANSC_STATUS CosaStartAdvParentalControl(BOOL update_status)
     char cmd[COMMAND_MAX] = {0};
     errno_t rc = -1;
 
-    if (!Is_Rabid_Initialization_Completed())
+    if (!Is_Agent_Initialization_Completed())
     {
-       CcspTraceWarning(("%s Rabid is not initialized yet!\n",__FUNCTION__));
+       CcspTraceWarning(("%s Agent is not initialized yet!\n",__FUNCTION__));
        return ANSC_STATUS_FAILURE;
     }
 
@@ -1085,9 +1085,9 @@ ANSC_STATUS CosaStopAdvParentalControl(BOOL update_status)
     char cmd[COMMAND_MAX] = {0};
     errno_t rc = -1;
 
-    if (!Is_Rabid_Initialization_Completed())
+    if (!Is_Agent_Initialization_Completed())
     {
-       CcspTraceWarning(("%s Rabid is not initialized yet!\n",__FUNCTION__));
+       CcspTraceWarning(("%s Agent is not initialized yet!\n",__FUNCTION__));
        return ANSC_STATUS_FAILURE;
     }
 
@@ -1117,9 +1117,9 @@ ANSC_STATUS CosaStartPrivacyProtection(BOOL update_status)
     char cmd[COMMAND_MAX] = {0};
     errno_t rc = -1;
 
-    if (!Is_Rabid_Initialization_Completed())
+    if (!Is_Agent_Initialization_Completed())
     {
-       CcspTraceWarning(("%s Rabid is not initialized yet!\n",__FUNCTION__));
+       CcspTraceWarning(("%s Agent is not initialized yet!\n",__FUNCTION__));
        return ANSC_STATUS_FAILURE;
     }
 
@@ -1149,9 +1149,9 @@ ANSC_STATUS CosaStopPrivacyProtection(BOOL update_status)
     char cmd[COMMAND_MAX] = {0};
     errno_t rc = -1;
 
-    if (!Is_Rabid_Initialization_Completed())
+    if (!Is_Agent_Initialization_Completed())
     {
-       CcspTraceWarning(("%s Rabid is not initialized yet!\n",__FUNCTION__));
+       CcspTraceWarning(("%s Agent is not initialized yet!\n",__FUNCTION__));
        return ANSC_STATUS_FAILURE;
     }
 
@@ -1368,8 +1368,8 @@ int advsec_sysevent_init(void)
     }
 
     //register rabid non-root event
-    sysevent_set_options(sysevent_fd, sysEtoken, ADVSEC_SYSEVENT_RABID_NONROOT_RFC_EVENT, TUPLE_FLAG_EVENT);
-    rc = sysevent_setnotification(sysevent_fd, sysEtoken, ADVSEC_SYSEVENT_RABID_NONROOT_RFC_EVENT, &async_id[2]);
+    sysevent_set_options(sysevent_fd, sysEtoken, ADVSEC_SYSEVENT_AGENT_NONROOT_RFC_EVENT, TUPLE_FLAG_EVENT);
+    rc = sysevent_setnotification(sysevent_fd, sysEtoken, ADVSEC_SYSEVENT_AGENT_NONROOT_RFC_EVENT, &async_id[2]);
     if (rc) {
        return(SYS_EVENT_ERROR);
     }
@@ -1467,7 +1467,7 @@ void advsec_handle_sysevent_notification(char *event, char *val)
                 }
             }
         }
-        else if(type == SYSEVENT_RABID_NONROOT_RFC_EVENT)
+        else if(type == SYSEVENT_AGENT_NONROOT_RFC_EVENT)
         {
             char cmd[COMMAND_MAX];
             memset(cmd, 0, sizeof(cmd));
@@ -1483,7 +1483,7 @@ void advsec_handle_sysevent_notification(char *event, char *val)
             char cmd[COMMAND_MAX];
             memset(cmd, 0, sizeof(cmd));
 
-            AnscCopyString(cmd, TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -restartRabid MAPTConfigChanged &");
+            AnscCopyString(cmd, TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -restartAgent MAPTConfigChanged &");
             system(cmd);
         }
     }

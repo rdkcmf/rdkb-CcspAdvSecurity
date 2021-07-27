@@ -52,7 +52,7 @@ fi
 
 get_agent_pid_list()
 {
-	AGENT_PROC="rabid"
+	AGENT_PROC=${CUJO_AGENT}
 	for agent in ${AGENT_PROC}; do
     		PID=`pidof $agent`
 		if [ "$PID" != "" ]; then
@@ -95,7 +95,7 @@ get_total_cpu_usage()
 log_agent_cpu_statistics()
 {
 	#Log all agent processes cpu stats before clearing them.
-	agent_cpu_stats=`top -bn1 | grep -e rabid | grep -v grep`
+	agent_cpu_stats=`top -bn1 | grep -e ${CUJO_AGENT} | grep -v grep`
 	echo "####Advsec Agent CPU stats####" >> $ADVSEC_AGENT_LOG_PATH
 	echo_t "$agent_cpu_stats" >> $ADVSEC_AGENT_LOG_PATH
 	echo "##############################" >> $ADVSEC_AGENT_LOG_PATH
@@ -118,7 +118,7 @@ log_agent_mem_statistics()
 	echo "######################################################" >> $ADVSEC_AGENT_LOG_PATH
 
 	if [ "$total_rss_mem" -ge "$MAX_RSS_THRESHOLD" ]; then
-		advsec_restart_rabid "HighRSS"
+		advsec_restart_agent "HighRSS"
 		exit
 	fi
 
@@ -126,12 +126,12 @@ log_agent_mem_statistics()
 		lowfree_mem=`cat /proc/meminfo | grep -i lowfree | awk '{ print $2 }'`
 		if [ $lowfree_mem -le $LOWFREE_MEM_THRESHOLD ]; then
 			echo_t "ADVSEC Lowfree Memory threshold recovery" >> $ADVSEC_AGENT_LOG_PATH
-			advsec_restart_rabid "LowFreeMem"
+			advsec_restart_agent "LowFreeMem"
 			exit
 		fi
 	fi
 
-	${RUNTIME_DIR}/bin/rabidsh -e 'cujo.nf.dostring([[print("nfluamem:"..collectgarbage("count"))]])'
+	${RUNTIME_DIR}/bin/${CUJO_AGENT_SH} -e 'cujo.nf.dostring([[print("nfluamem:"..collectgarbage("count"))]])'
 	nflua_rss=`dmesg | grep nfluamem: | tail -1 | cut -d':' -f2`
 	if [ "${nflua_rss}" = "" ]; then
 		nflua_rss=0

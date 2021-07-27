@@ -75,11 +75,11 @@ check_status()
         print_telemetry_log ${PRIVACY_PROTECTION_RFC_DISABLED_LOG} ${ADVSEC_AGENT_LOG_PATH}
     fi
 
-    RABID_USER=`advsec_get_rabid_group_name`
-    if [ "$RABID_USER" = "root" ]; then
-        print_telemetry_log ${RABID_RUNNING_AS_ROOT_LOG} ${ADVSEC_AGENT_LOG_PATH}
-    elif [ "$RABID_USER" = "_rabid" ]; then
-        print_telemetry_log ${RABID_RUNNING_AS_NON_ROOT_LOG} ${ADVSEC_AGENT_LOG_PATH}
+    AGENT_USER=`advsec_get_agent_group_name`
+    if [ "${AGENT_USER}" = "root" ]; then
+        print_telemetry_log ${AGENT_RUNNING_AS_ROOT_LOG} ${ADVSEC_AGENT_LOG_PATH}
+    elif [ "${AGENT_USER}" = "${CUJO_AGENT_USER_NAME}" ]; then
+        print_telemetry_log ${AGENT_RUNNING_AS_NON_ROOT_LOG} ${ADVSEC_AGENT_LOG_PATH}
     fi
     if [ -e ${ADV_PARENTAL_CONTROL_PATH} ]; then
         if [ -e $ADV_PARENTAL_CONTROL_ACTIVEMACSFILE ]; then

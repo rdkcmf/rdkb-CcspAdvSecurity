@@ -24,6 +24,18 @@ if [ "$DEVICE_MODEL" = "TCHXB3" ]; then
     export RUNTIME_DIR="/tmp/cujo_dnld/usr"
 fi
 
+CUJO_AGENT="cujo-agent"
+CUJO_AGENT_SH="cujo-agent --ctl"
+CUJO_AGENT_LOG="CujoAgent"
+CUJO_AGENT_USER_NAME="_rabid"
+
+if [ "$BOX_TYPE" = "XB3" ] || [ "$BOX_TYPE" = "XF3" ]; then
+    CUJO_AGENT="rabid"
+    CUJO_AGENT_SH="rabidsh"
+    CUJO_AGENT_LOG="Rabid"
+    CUJO_AGENT_USER_NAME="_rabid"
+fi
+
 export APPLIANCE_MODE="EMBEDDED"
 export NFLUA_MODULE_PATH="/lib/modules/$(uname -r)/nflua.ko"
 export LUACONNTRACK_MODULE_PATH="/lib/modules/$(uname -r)/luaconntrack.ko"
@@ -32,6 +44,7 @@ export LUABASE64_MODULE_PATH="/lib/modules/$(uname -r)/luabase64.ko"
 export LUAJSON_MODULE_PATH="/lib/modules/$(uname -r)/luajson.ko"
 export LUNATIK_MODULE_PATH="/lib/modules/$(uname -r)/lunatik.ko"
 export LUAPUMA_MODULE_PATH="/lib/modules/$(uname -r)/luapuma.ko"
+export LUAKCRYPTO_MODULE_PATH="/lib/modules/$(uname -r)/luakcrypto.ko"
 
 export RW_DIR="/tmp"
 export INFO_DIR="${RW_DIR}/advsec"
@@ -84,8 +97,13 @@ export PRIVACY_PROTECTION_ACTIVATED_LOG=PRIVACY_PROTECTION_ACTIVATED
 export PRIVACY_PROTECTION_DEACTIVATED_LOG=PRIVACY_PROTECTION_DEACTIVATED
 export PRIVACY_PROTECTION_RFC_ENABLED_LOG=PRIVACY_PROTECTION_RFC_STATUS_ENABLED
 export PRIVACY_PROTECTION_RFC_DISABLED_LOG=PRIVACY_PROTECTION_RFC_STATUS_DISABLED
-export RABID_RUNNING_AS_NON_ROOT_LOG=RABID_RUNNING_AS_NON_ROOT
-export RABID_RUNNING_AS_ROOT_LOG=RABID_RUNNING_AS_ROOT
+if [ "$BOX_TYPE" != "XB3" ] && [ "$BOX_TYPE" != "XF3" ]; then
+    export AGENT_RUNNING_AS_NON_ROOT_LOG=CUJO_AGENT_RUNNING_AS_NON_ROOT
+    export AGENT_RUNNING_AS_ROOT_LOG=CUJO_AGENT_RUNNING_AS_ROOT
+else
+    export AGENT_RUNNING_AS_NON_ROOT_LOG=RABID_RUNNING_AS_NON_ROOT
+    export AGENT_RUNNING_AS_ROOT_LOG=RABID_RUNNING_AS_ROOT
+fi
 if [ "$BOX_TYPE" != "XB3" ] && [ "$BOX_TYPE" != "XF3" ]; then
 export DF_ICMPv6_RFC_ENABLED_LOG=DeviceFingerPrintICMPv6.Enabled
 export DF_ICMPv6_RFC_DISABLED_LOG=DeviceFingerPrintICMPv6.Disabled
@@ -97,34 +115,32 @@ export ADV_WS_DISCOVERY_RFC_DISABLE_LOG=ADVANCE_SECURITY_WS_DISCOVERY_DISABLED
 
 export ADVSEC_SAFEBRO_SETTING="${RW_DIR}/safebro.json"
 
-export CC_BOX_TYPE=$BOX_TYPE
-
 if [ "$MODEL_NUM" = "TG1682G" ] || [ "$MODEL_NUM" = "DPC3941" ] || [ "$MODEL_NUM" = "TG3482G" ] || [ "$MODEL_NUM" = "TG4482A" ]; then
     export CC_PLATFORM_TYPE="PUMA"
 fi
 
-advsec_is_rabid_installed()
+advsec_is_agent_installed()
 {
-    if [ -e ${RUNTIME_DIR}/bin/launch-rabid ]; then
+    if [ -e ${RUNTIME_DIR}/bin/launch-${CUJO_AGENT} ]; then
         echo "YES"
     else
         echo "NO"
     fi
 }
 
-advsec_start_rabid()
+advsec_start_agent()
 {
-    ADV_RABID_PID=`advsec_is_alive rabid`
-    if [ "$ADV_RABID_PID" = "" ] ; then
-        echo_t "Starting Rabid..."
+    ADV_AGENT_PID=`advsec_is_alive ${CUJO_AGENT}`
+    if [ "${ADV_AGENT_PID}" = "" ] ; then
+        echo_t "Starting ${CUJO_AGENT_LOG}..."
         echo_t "[ADVSEC_LOG_START]" >> $ADVSEC_AGENT_LOG_PATH
-        ${RUNTIME_DIR}/bin/launch-rabid start 2>&1 >> $ADVSEC_AGENT_LOG_PATH
+        ${RUNTIME_DIR}/bin/launch-${CUJO_AGENT} start 2>&1 >> $ADVSEC_AGENT_LOG_PATH
     else
-        echo_t 'Rabid is already running...'
+        echo_t '${CUJO_AGENT_LOG} is already running...'
     fi
 }
 
-advsec_wait_for_rabid()
+advsec_wait_for_agent()
 {
     if [ "$1" != "" ]; then
         TIMEOUT=$1
@@ -132,64 +148,64 @@ advsec_wait_for_rabid()
         TIMEOUT=60
     fi
     sleep $TIMEOUT
-    ${RUNTIME_DIR}/bin/rabidsh -e "return"
+    ${RUNTIME_DIR}/bin/${CUJO_AGENT_SH} -e "return"
     EXIT_STATUS=$?
     RETRY_CNT=5
     while [ ${EXIT_STATUS} -ne 0 ] && [ ${RETRY_CNT} -gt 0 ]; do
-        echo_t "Rabid is not active...keep waiting...iteration=$RETRY_CNT"
+        echo_t "${CUJO_AGENT_LOG} is not active...keep waiting...iteration=$RETRY_CNT"
         sleep 5s
-        ${RUNTIME_DIR}/bin/rabidsh -e "return"
+        ${RUNTIME_DIR}/bin/${CUJO_AGENT_SH} -e "return"
         EXIT_STATUS=$?
         RETRY_CNT=$(expr $RETRY_CNT - 1)
     done
 }
 
-advsec_rabid_start_fp()
+advsec_agent_start_fp()
 {
-    ${RUNTIME_DIR}/bin/rabid-feature on "fingerprint" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
+    ${RUNTIME_DIR}/bin/${CUJO_AGENT}-feature on "fingerprint" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
     touch ${ADVSEC_DF_ENABLED_PATH}
 }
 
-advsec_rabid_start_sb()
+advsec_agent_start_sb()
 {
-    ${RUNTIME_DIR}/bin/rabid-feature on "safebro.reputation" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
+    ${RUNTIME_DIR}/bin/${CUJO_AGENT}-feature on "safebro.reputation" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
     touch ${SAFEBRO_ENABLE}
 }
 
-advsec_rabid_start_sf()
+advsec_agent_start_sf()
 {
-    ${RUNTIME_DIR}/bin/rabid-feature on "tcptracker" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
+    ${RUNTIME_DIR}/bin/${CUJO_AGENT}-feature on "tcptracker" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
     touch ${SOFTFLOWD_ENABLE}
     if [ ! -e ${ADVSEC_APPBLOCK_PATH} ]; then
         start_iot_blocker
     fi
 }
 
-advsec_stop_rabid()
+advsec_stop_agent()
 {
-    ${RUNTIME_DIR}/bin/launch-rabid stop 2>&1 >> $ADVSEC_AGENT_LOG_PATH
+    ${RUNTIME_DIR}/bin/launch-${CUJO_AGENT} stop 2>&1 >> $ADVSEC_AGENT_LOG_PATH
 }
 
-advsec_rabid_stop_fp()
+advsec_agent_stop_fp()
 {
     if [ -e ${ADVSEC_DF_ENABLED_PATH} ]; then
-        ${RUNTIME_DIR}/bin/rabid-feature off "fingerprint" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
+        ${RUNTIME_DIR}/bin/${CUJO_AGENT}-feature off "fingerprint" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
         rm ${ADVSEC_DF_ENABLED_PATH}
     fi
 }
 
-advsec_rabid_stop_sb()
+advsec_agent_stop_sb()
 {
     if [ -e ${SAFEBRO_ENABLE} ]; then
-        ${RUNTIME_DIR}/bin/rabid-feature off "safebro.reputation" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
+        ${RUNTIME_DIR}/bin/${CUJO_AGENT}-feature off "safebro.reputation" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
         rm ${SAFEBRO_ENABLE}
     fi
 }
 
-advsec_rabid_stop_sf()
+advsec_agent_stop_sf()
 {
     if [ -e ${SOFTFLOWD_ENABLE} ]; then
-        ${RUNTIME_DIR}/bin/rabid-feature off "tcptracker" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
+        ${RUNTIME_DIR}/bin/${CUJO_AGENT}-feature off "tcptracker" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
         rm ${SOFTFLOWD_ENABLE}
         if [ ! -e ${ADVSEC_APPBLOCK_PATH} ]; then
             stop_iot_blocker
@@ -203,7 +219,7 @@ start_adv_parental_control()
         sysctl -w net.netfilter.nf_conntrack_acct=1
     fi
 
-    ${RUNTIME_DIR}/bin/rabid-feature on "apptracker" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
+    ${RUNTIME_DIR}/bin/${CUJO_AGENT}-feature on "apptracker" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
     touch ${ADV_PARENTAL_CONTROL_PATH}
 }
 
@@ -213,28 +229,28 @@ stop_adv_parental_control()
         sysctl -w net.netfilter.nf_conntrack_acct=0
     fi
     if [ -e ${ADV_PARENTAL_CONTROL_PATH} ];then
-        ${RUNTIME_DIR}/bin/rabid-feature off "apptracker" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
+        ${RUNTIME_DIR}/bin/${CUJO_AGENT}-feature off "apptracker" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
         rm ${ADV_PARENTAL_CONTROL_PATH}
     fi
 }
 
 start_privacy_protection()
 {
-    ${RUNTIME_DIR}/bin/rabid-feature on "safebro.trackerblock" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
+    ${RUNTIME_DIR}/bin/${CUJO_AGENT}-feature on "safebro.trackerblock" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
     touch ${PRIVACY_PROTECTION_PATH}
 }
 
 stop_privacy_protection()
 {
     if [ -e ${PRIVACY_PROTECTION_PATH} ];then
-        ${RUNTIME_DIR}/bin/rabid-feature off "safebro.trackerblock" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
+        ${RUNTIME_DIR}/bin/${CUJO_AGENT}-feature off "safebro.trackerblock" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
         rm ${PRIVACY_PROTECTION_PATH}
     fi
 }
 
 start_app_blocker()
 {
-    ${RUNTIME_DIR}/bin/rabid-feature on "appblocker" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
+    ${RUNTIME_DIR}/bin/${CUJO_AGENT}-feature on "appblocker" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
     touch ${ADVSEC_APPBLOCK_PATH}
     if [ ! -e ${SOFTFLOWD_ENABLE} ]; then
         start_iot_blocker
@@ -244,7 +260,7 @@ start_app_blocker()
 stop_app_blocker()
 {
     if [ -e ${ADVSEC_APPBLOCK_PATH} ]; then
-        ${RUNTIME_DIR}/bin/rabid-feature off "appblocker" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
+        ${RUNTIME_DIR}/bin/${CUJO_AGENT}-feature off "appblocker" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
         rm ${ADVSEC_APPBLOCK_PATH}
         if [ ! -e ${SOFTFLOWD_ENABLE} ]; then
             stop_iot_blocker
@@ -254,12 +270,12 @@ stop_app_blocker()
 
 start_iot_blocker()
 {
-    ${RUNTIME_DIR}/bin/rabid-feature on "iotblocker" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
+    ${RUNTIME_DIR}/bin/${CUJO_AGENT}-feature on "iotblocker" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
 }
 
 stop_iot_blocker()
 {
-    ${RUNTIME_DIR}/bin/rabid-feature off "iotblocker" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
+    ${RUNTIME_DIR}/bin/${CUJO_AGENT}-feature off "iotblocker" 2>&1 >> $ADVSEC_AGENT_LOG_PATH
 }
 
 advsec_module_load()
@@ -273,7 +289,8 @@ advsec_module_load()
 	fi
 
 	advsec_kernel_module_load $LUNATIK_MODULE_PATH 
-	advsec_kernel_module_load $LUADATA_MODULE_PATH 
+	advsec_kernel_module_load $LUADATA_MODULE_PATH
+	advsec_kernel_module_load $LUAKCRYPTO_MODULE_PATH 
 	advsec_kernel_module_load $LUAJSON_MODULE_PATH 
 	advsec_kernel_module_load $LUABASE64_MODULE_PATH 
 	advsec_kernel_module_load $LUACONNTRACK_MODULE_PATH
@@ -304,6 +321,7 @@ advsec_module_unload()
         advsec_kernel_module_unload $LUAJSON_MODULE_PATH
         advsec_kernel_module_unload $LUABASE64_MODULE_PATH
         advsec_kernel_module_unload $LUADATA_MODULE_PATH
+        advsec_kernel_module_unload $LUAKCRYPTO_MODULE_PATH
         advsec_kernel_module_unload $LUNATIK_MODULE_PATH
 
 	if [ "$MODEL_NUM" = "TG1682G" ] && [ "$sysfs_mount" = "1" ]; then
@@ -345,7 +363,7 @@ advsec_initialize_nfq_ct()
     fi
 }
 
-advsec_rabid_create_ipsets()
+advsec_agent_create_ipsets()
 {
     ipset create cujo_fingerprint hash:mac -exist
     ipset create cujo_iotblock_mac hash:mac -exist
@@ -355,7 +373,7 @@ advsec_rabid_create_ipsets()
     touch ${ADVSEC_IPSETLIST_CREATED}
 }
 
-advsec_rabid_flush_ipsets()
+advsec_agent_flush_ipsets()
 {
     ipset flush
     ipset destroy cujo_fingerprint
@@ -365,7 +383,7 @@ advsec_rabid_flush_ipsets()
     rm -f ${ADVSEC_IPSETLIST_CREATED}
 }
 
-advsec_rabid_chain_cleanup()
+advsec_agent_chain_cleanup()
 {
     if ((iptables -L ${INPUT_CHAIN} &&
          iptables -L ${OUTPUT_CHAIN}
@@ -410,7 +428,7 @@ advsec_rabid_chain_cleanup()
     trap - EXIT
 }
 
-advsec_rabid_restart_needed()
+advsec_agent_restart_needed()
 {
 	result="0"
 	#Check for cloud socket connection
@@ -424,7 +442,7 @@ advsec_rabid_restart_needed()
 					if [ "${res}" = "" ]; then
 						result="1"
 						touch ${ADVSEC_AGENT_SHUTDOWN}
-						echo_t "[ADVSEC] Rabid is going to restart due to no websocket connection..." >> ${ADVSEC_AGENT_LOG_PATH}
+						echo_t "[ADVSEC] ${CUJO_AGENT_LOG} is going to restart due to no websocket connection..." >> ${ADVSEC_AGENT_LOG_PATH}
 						echo_t "netstat output: $res" >> ${ADVSEC_AGENT_LOG_PATH}
 						echo_t "IP_PORT: $ip_port" >> ${ADVSEC_AGENT_LOG_PATH}
 					fi
@@ -437,9 +455,9 @@ advsec_rabid_restart_needed()
 
 advsec_is_alive() {
 
-	if [ "$1" = "rabid" ]
+	if [ "$1" = "${CUJO_AGENT}" ]
 	then
-		PROCESS_PID=`pidof "rabid"`
+		PROCESS_PID=`pidof ${CUJO_AGENT}`
 	fi
 	echo $PROCESS_PID
 }
@@ -447,9 +465,9 @@ advsec_is_alive() {
 advsec_stop_process() {
 	ADVSEC_RDK_LOG_FILE=""
 	echo_t "Stopping process " $1
-	if [ "$1" = "rabid" ]
+	if [ "$1" = "${CUJO_AGENT}" ]
 	then
-		PROCESS_PID=`pidof "rabid"`
+		PROCESS_PID=`pidof ${CUJO_AGENT}`
 		ADVSEC_RDK_LOG_FILE=$ADVSEC_AGENT_LOG_PATH
 	fi
 	if [ "$PROCESS_PID" != "" ]; then
@@ -469,7 +487,7 @@ advsec_cleanup_config() {
 
 }
 
-advsec_cleanup_config_rabid() {
+advsec_cleanup_config_agent() {
         if [ -e $DAEMONS_HIBERNATING ]; then
                 rm -f $DAEMONS_HIBERNATING
         fi
@@ -497,18 +515,18 @@ advsec_cleanup_config_rabid() {
         advsec_cleanup_config
 }
 
-advsec_restart_rabid() {
+advsec_restart_agent() {
     if [ ! -f $ADVSEC_INITIALIZING ]; then
         touch $ADVSEC_INITIALIZING
         if [ "$1" != "" ]; then
-            echo_t "[ADVSEC] Restarting Rabid due to $1..." >> ${ADVSEC_AGENT_LOG_PATH}
+            echo_t "[ADVSEC] Restarting ${CUJO_AGENT_LOG} due to $1..." >> ${ADVSEC_AGENT_LOG_PATH}
         else
-            echo_t "[ADVSEC] Restarting Rabid due to Selfheal..." >> ${ADVSEC_AGENT_LOG_PATH}
+            echo_t "[ADVSEC] Restarting ${CUJO_AGENT_LOG} due to Selfheal..." >> ${ADVSEC_AGENT_LOG_PATH}
         fi
 
-        advsec_stop_rabid
+        advsec_stop_agent
 
-        advsec_cleanup_config_rabid
+        advsec_cleanup_config_agent
 
         sleep 5
         if [ ! -e ${ADVSEC_NFLUA_LOADED} ]
@@ -518,24 +536,24 @@ advsec_restart_rabid() {
 
         if [ ! -e ${ADVSEC_IPSETLIST_CREATED} ]
         then
-                advsec_rabid_create_ipsets
+                advsec_agent_create_ipsets
         fi
 
-        advsec_start_rabid
-        advsec_wait_for_rabid 30
+        advsec_start_agent
+        advsec_wait_for_agent 30
 
         if [ -e ${ADVSEC_DF_ENABLED_PATH} ]
         then
-                advsec_rabid_start_fp
+                advsec_agent_start_fp
         fi
 
         if [ -e ${SAFEBRO_ENABLE} ]
         then
-                advsec_rabid_start_sb
+                advsec_agent_start_sb
         fi
         if [ -e ${SOFTFLOWD_ENABLE} ]
         then
-                advsec_rabid_start_sf
+                advsec_agent_start_sf
         fi
 
         if [ -e ${ADV_PARENTAL_CONTROL_PATH} ] && [ "$ADV_PC_RFC_ENABLED" = "1" ]
@@ -552,9 +570,9 @@ advsec_restart_rabid() {
     fi
 }
 
-advsec_get_rabid_group_name() {
-        rabiduser=`ps | grep -i rabid | grep -v grep | head -n 1 | awk '{print $2}'`
-        echo $rabiduser
+advsec_get_agent_group_name() {
+        agentuser=`ps | grep -i ${CUJO_AGENT} | grep -v grep | head -n 1 | awk '{print $2}'`
+        echo $agentuser
 }
 
 wait_for_lanip()

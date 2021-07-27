@@ -35,10 +35,10 @@ then
         exit 0
     fi
 
-    if [ "x$(advsec_is_rabid_installed)" == "xYES" ]; then
-        echo_t "Advanced Security : Rabid is installed on the device" >> ${ADVSEC_AGENT_LOG_PATH}
+    if [ "x$(advsec_is_agent_installed)" == "xYES" ]; then
+        echo_t "Advanced Security : ${CUJO_AGENT_LOG} is installed on the device" >> ${ADVSEC_AGENT_LOG_PATH}
     else
-        echo_t "Advanced Security : Rabid is not installed on the device..." >> ${ADVSEC_AGENT_LOG_PATH}
+        echo_t "Advanced Security : ${CUJO_AGENT_LOG} is not installed on the device..." >> ${ADVSEC_AGENT_LOG_PATH}
         exit 0
     fi
 
@@ -55,7 +55,7 @@ then
 
     wait_for_lanip
 
-    start_rabid_services
+    start_agent_services
 
     touch $ADVSEC_INITIALIZED
 
@@ -105,7 +105,7 @@ then
 
     rm $ADVSEC_INITIALIZING
 
-    echo_t "Rabid triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
+    echo_t "${CUJO_AGENT_LOG} triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
     sysevent set firewall-restart
 
     if [ "$ADV_PC_ENABLED" = "1" ] && [ ! -e ${ADV_PARENTAL_CONTROL_RFC_DISABLED_PATH} ]; then
@@ -117,24 +117,24 @@ then
             ip4=`iptables-save | grep CUJO | wc -l`
             ip6=`ip6tables-save | grep CUJO | wc -l`
             if [ ${ipt4} != ${ip4} ] || [ ${ipt6} != ${ip6} ]; then
-		 echo_t "Rabid triggering firewall restart to reload rules" >> ${ADVSEC_AGENT_LOG_PATH}
+		 echo_t "${CUJO_AGENT_LOG} triggering firewall restart to reload rules" >> ${ADVSEC_AGENT_LOG_PATH}
            	 sysevent set firewall-restart
             else
 		 echo_t "Rules are loaded correctly" >> ${ADVSEC_AGENT_LOG_PATH}
             fi
     fi
 
-    RABID_USER=`advsec_get_rabid_group_name`
-    if [ "$RABID_USER" = "root" ]; then
-        echo_t ${RABID_RUNNING_AS_ROOT_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
-    elif [ "$RABID_USER" = "_rabid" ]; then
-        echo_t ${RABID_RUNNING_AS_NON_ROOT_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
+    AGENT_USER=`advsec_get_agent_group_name`
+    if [ "${AGENT_USER}" = "root" ]; then
+        echo_t ${AGENT_RUNNING_AS_ROOT_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
+    elif [ "${AGENT_USER}" = "${CUJO_AGENT_USER_NAME}" ]; then
+        echo_t ${AGENT_RUNNING_AS_NON_ROOT_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
     fi
 
     exit 0
 elif [ "$1" = "-disable" ]
 then
-    stop_rabid_services
+    stop_agent_services
 
     if [ "$DF_ENABLED" != "1" ]; then
         echo_t "Device_Finger_Printing_enabled:false"
@@ -174,34 +174,34 @@ then
 fi
 }
 
-start_rabid_services()
+start_agent_services()
 {
     advsec_module_load
-    advsec_rabid_create_ipsets
-    advsec_start_rabid
-    advsec_wait_for_rabid
+    advsec_agent_create_ipsets
+    advsec_start_agent
+    advsec_wait_for_agent
 
     if [ "$DF_ENABLED" = "1" ]; then
-        advsec_rabid_start_fp
+        advsec_agent_start_fp
     fi
 
     advsec_initialize_nfq_ct
 }
 
-stop_rabid_services()
+stop_agent_services()
 {
     rm -f ${ADVSEC_NFLUA_LOADED}
     stop_privacy_protection
     stop_adv_parental_control
-    advsec_rabid_stop_sf
-    advsec_rabid_stop_sb
-    advsec_rabid_stop_fp
-    advsec_stop_rabid
-    advsec_rabid_flush_ipsets
+    advsec_agent_stop_sf
+    advsec_agent_stop_sb
+    advsec_agent_stop_fp
+    advsec_stop_agent
+    advsec_agent_flush_ipsets
     RETRY_CNT=5
     while [ ${RETRY_CNT} -gt 0 ]; do
         RETRY_CNT=$(expr $RETRY_CNT - 1)
-        echo_t "Rabid triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
+        echo_t "${CUJO_AGENT_LOG} triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
         sysevent set firewall-restart
         sleep 10s
         ip4=`iptables-save | grep CUJO | wc -l`
@@ -209,23 +209,23 @@ stop_rabid_services()
         if [ $ip4 = "0" ] && [ $ip6 = "0" ]; then
             break
         else
-            echo_t "Rabid rules are not removed yet! ip4 = $ip4 And ip6 = $ip6 ..Retry again" >> ${ADVSEC_AGENT_LOG_PATH}
+            echo_t "${CUJO_AGENT_LOG} rules are not removed yet! ip4 = $ip4 And ip6 = $ip6 ..Retry again" >> ${ADVSEC_AGENT_LOG_PATH}
             sleep 60s
         fi
     done
-    advsec_module_unload rabid
-    advsec_cleanup_config_rabid
+    advsec_module_unload
+    advsec_cleanup_config_agent
 }
 
 start_advsec_safe_browsing()
 {
-    advsec_rabid_start_sb
+    advsec_agent_start_sb
     echo_t "ADV_SECURITY_SAFE_BROWSING_ENABLE"
 }
 
 stop_advsec_safe_browsing()
 {
-    advsec_rabid_stop_sb
+    advsec_agent_stop_sb
     echo_t "ADV_SECURITY_SAFE_BROWSING_DISABLE"
     if [ -e ${ADVSEC_LOOKUP_EXCEED_COUNT_FILE} ]; then
         rm ${ADVSEC_LOOKUP_EXCEED_COUNT_FILE}
@@ -234,13 +234,13 @@ stop_advsec_safe_browsing()
 
 start_advsec_softflowd()
 {
-    advsec_rabid_start_sf
+    advsec_agent_start_sf
     echo_t "ADV_SECURITY_SOFTFLOWD_ENABLE"
 }
 
 stop_advsec_softflowd()
 {
-    advsec_rabid_stop_sf
+    advsec_agent_stop_sf
     echo_t "ADV_SECURITY_SOFTFLOWD_DISABLE"
 }
 
@@ -307,7 +307,7 @@ enable_icmpv6()
     echo_t ${DF_ICMPv6_RFC_ENABLED_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
 
     if [ "$1" = "FR" ]; then
-        echo_t "Rabid triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
+        echo_t "${CUJO_AGENT_LOG} triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
         sysevent set firewall-restart
     fi
 }
@@ -318,7 +318,7 @@ disable_icmpv6()
     echo_t ${DF_ICMPv6_RFC_DISABLED_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
 
     if [ "$1" = "FR" ]; then
-        echo_t "Rabid triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
+        echo_t "${CUJO_AGENT_LOG} triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
         sysevent set firewall-restart
     fi
 }
@@ -329,7 +329,7 @@ enable_wsdiscovery()
     echo_t ${ADV_WS_DISCOVERY_RFC_ENABLE_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
 
     if [ "$1" = "FR" ]; then
-        echo_t "Rabid triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
+        echo_t "${CUJO_AGENT_LOG} triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
         sysevent set firewall-restart
     fi
 }
@@ -340,7 +340,7 @@ disable_wsdiscovery()
     echo_t ${ADV_WS_DISCOVERY_RFC_DISABLE_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
 
     if [ "$1" = "FR" ]; then
-        echo_t "Rabid triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
+        echo_t "${CUJO_AGENT_LOG} triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
         sysevent set firewall-restart
     fi
 }
@@ -349,7 +349,7 @@ enable_otm()
 {
    echo_t ${ADV_OTM_RFC_ENABLE_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
    if [ "$1" = "RR" ]; then
-       advsec_restart_rabid "OTM_RFC_Enabled"
+       advsec_restart_agent "OTM_RFC_Enabled"
    fi
 }
 
@@ -357,7 +357,7 @@ disable_otm()
 {
    echo_t ${ADV_OTM_RFC_DISABLE_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
    if [ "$1" = "RR" ]; then
-       advsec_restart_rabid "OTM_RFC_Disabled"
+       advsec_restart_agent "OTM_RFC_Disabled"
    fi
 }
 
@@ -370,7 +370,7 @@ if [ "$1" = "-start" ] || [ "$1" = "-stop" ]
 then
     start_advanced_security $1 $2 $3
     if [ "$BOX_TYPE" == "XB3" ] || [ "$BOX_TYPE" == "XF3" ]; then
-        echo_t "Rabid triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
+        echo_t "${CUJO_AGENT_LOG} triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
         sysevent set firewall-restart
     fi
 fi
@@ -378,11 +378,11 @@ fi
 if [ "$1" = "-startAdvPC" ] || [ "$1" = "-stopAdvPC" ]
 then
     if [ "$1" = "-startAdvPC" ] && [ "$ADV_PC_RFC_ENABLED" = "0" ]; then
-        echo_t "Rabid cannot activate AdvParentalControl feature due to RFC is disabled" >> ${ADVSEC_AGENT_LOG_PATH}
+        echo_t "${CUJO_AGENT_LOG} cannot activate AdvParentalControl feature due to RFC is disabled" >> ${ADVSEC_AGENT_LOG_PATH}
     else
         advanced_parental_control_setup $1
         if [ "$BOX_TYPE" == "XB3" ] || [ "$BOX_TYPE" == "XF3" ]; then
-            echo_t "Rabid triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
+            echo_t "${CUJO_AGENT_LOG} triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
             sysevent set firewall-restart
         fi
     fi
@@ -391,11 +391,11 @@ fi
 if [ "$1" = "-startPrivProt" ] || [ "$1" = "-stopPrivProt" ]
 then
     if [ "$1" = "-startPrivProt" ] && [ "$PRIVACY_PROTECTION_RFC_ENABLED" = "0" ]; then
-        echo_t "Rabid cannot activate PrivacyProtection feature due to RFC is disabled" >> ${ADVSEC_AGENT_LOG_PATH}
+        echo_t "${CUJO_AGENT_LOG} cannot activate PrivacyProtection feature due to RFC is disabled" >> ${ADVSEC_AGENT_LOG_PATH}
     else
         privacy_protection_setup $1
         if [ "$BOX_TYPE" == "XB3" ] || [ "$BOX_TYPE" == "XF3" ]; then
-            echo_t "Rabid triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
+            echo_t "${CUJO_AGENT_LOG} triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
             sysevent set firewall-restart
         fi
     fi
@@ -426,7 +426,7 @@ then
     if [ "${ADV_PC_ENABLED}" = "1" ]; then
         if [ ! -e ${ADV_PARENTAL_CONTROL_PATH} ]; then
             if [ "$ADV_PC_RFC_ENABLED" = "0" ]; then
-                echo_t "Rabid cannot activate AdvParentalControl feature due to RFC is disabled" >> ${ADVSEC_AGENT_LOG_PATH}
+                echo_t "${CUJO_AGENT_LOG} cannot activate AdvParentalControl feature due to RFC is disabled" >> ${ADVSEC_AGENT_LOG_PATH}
             else
                 advanced_parental_control_setup "-startAdvPC"
             fi
@@ -440,7 +440,7 @@ then
     if [ "${PRIVACY_PROTECTION_ENABLED}" = "1" ]; then
         if [ ! -e ${PRIVACY_PROTECTION_PATH} ]; then
             if [ "$PRIVACY_PROTECTION_RFC_ENABLED" = "0" ]; then
-                 echo_t "Rabid cannot activate PrivacyProtection feature due to RFC is disabled" >> ${ADVSEC_AGENT_LOG_PATH}
+                 echo_t "${CUJO_AGENT_LOG} cannot activate PrivacyProtection feature due to RFC is disabled" >> ${ADVSEC_AGENT_LOG_PATH}
             else
                 privacy_protection_setup "-startPrivProt"
             fi
@@ -452,7 +452,7 @@ then
     fi
 
     if [ "$BOX_TYPE" == "XB3" ] || [ "$BOX_TYPE" == "XF3" ]; then
-        echo_t "Rabid triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
+        echo_t "${CUJO_AGENT_LOG} triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
         sysevent set firewall-restart
     fi
 
@@ -460,16 +460,16 @@ fi
 
 if [ "$1" = "-restart" ] && [ -e ${ADVSEC_DF_ENABLED_PATH} ]
 then
-    RABID_USER=`advsec_get_rabid_group_name`
-    if [ "$RABID_USER" = "root" ] && [ "${NON_ROOT_SUPPORT}" = "true" ]
+    AGENT_USER=`advsec_get_agent_group_name`
+    if [ "${AGENT_USER}" = "root" ] && [ "${NON_ROOT_SUPPORT}" = "true" ]
     then
-        advsec_restart_rabid "NonRootSupportToggle"
-        echo_t ${RABID_RUNNING_AS_NON_ROOT_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
+        advsec_restart_agent "NonRootSupportToggle"
+        echo_t ${AGENT_RUNNING_AS_NON_ROOT_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
     fi
-    if [ "$RABID_USER" = "_rabid" ] && [ "${NON_ROOT_SUPPORT}" = "false" ]
+    if [ "${AGENT_USER}" = "${CUJO_AGENT_USER_NAME}" ] && [ "${NON_ROOT_SUPPORT}" = "false" ]
     then
-        advsec_restart_rabid "NonRootSupportToggle"
-        echo_t ${RABID_RUNNING_AS_ROOT_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
+        advsec_restart_agent "NonRootSupportToggle"
+        echo_t ${AGENT_RUNNING_AS_ROOT_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
     fi
 fi
 
@@ -497,7 +497,7 @@ if [ "$1" = "-disableWSDiscovery" ]; then
    disable_wsdiscovery "FR"
 fi
 
-if [ "$1" = "-restartRabid" ] && [ -e ${ADVSEC_DF_ENABLED_PATH} ]
+if [ "$1" = "-restartAgent" ] && [ -e ${ADVSEC_DF_ENABLED_PATH} ]
 then
-    advsec_restart_rabid $2
+    advsec_restart_agent $2
 fi
