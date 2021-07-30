@@ -90,16 +90,17 @@ then
         else
             disable_icmpv6
         fi
-        if [ "$ADVSEC_WS_DISCOVERY_RFC_ENABLED" = "1" ]; then
-            enable_wsdiscovery
-        else
-            disable_wsdiscovery
-        fi
         if [ "$ADVSEC_OTM_RFC_ENABLED" = "1" ]; then
             enable_otm
         else
             disable_otm
         fi
+    fi
+
+    if [ "$ADVSEC_WS_DISCOVERY_RFC_ENABLED" = "1" ]; then
+            enable_wsdiscovery
+    else
+            disable_wsdiscovery
     fi
 
     rm $ADVSEC_INITIALIZING
@@ -163,9 +164,10 @@ then
         if [ -f $ADVSEC_DF_ICMPv6_ENABLED_PATH ]; then
             rm $ADVSEC_DF_ICMPv6_ENABLED_PATH
         fi
-        if [ -f $ADVSEC_WS_DISCOVERY_ENABLED_PATH ]; then
-            rm $ADVSEC_WS_DISCOVERY_ENABLED_PATH
-        fi
+    fi
+
+    if [ -f $ADVSEC_WS_DISCOVERY_ENABLED_PATH ]; then
+        rm $ADVSEC_WS_DISCOVERY_ENABLED_PATH
     fi
 
     exit 0

@@ -2486,13 +2486,8 @@ WS_Discovery_Analysis_RFC_GetParamBoolValue
 
     if( AnscEqualString(ParamName, "Enable", TRUE))
     {
-#if !(defined(_COSA_INTEL_XB3_ARM_) || defined(_COSA_BCM_MIPS_))
         *pBool = g_pAdvSecAgent->pWSDiscoveryAnalysis_RFC->bEnable;
         return TRUE;
-#else
-        UNREFERENCED_PARAMETER(pBool);
-        return FALSE;
-#endif
     }
     CcspTraceWarning(("Unsupported parameter '%s'\n", ParamName));
     return FALSE;
@@ -2543,7 +2538,6 @@ WS_Discovery_Analysis_RFC_SetParamBoolValue
 
     if( AnscEqualString(ParamName, "Enable", TRUE))
     {
-#if !(defined(_COSA_INTEL_XB3_ARM_) || defined(_COSA_BCM_MIPS_))
         if(bValue == g_pAdvSecAgent->pWSDiscoveryAnalysis_RFC->bEnable)
                 return TRUE;
         if( bValue )
@@ -2557,11 +2551,6 @@ WS_Discovery_Analysis_RFC_SetParamBoolValue
             return  returnStatus;
         }
         return TRUE;
-#else
-     UNREFERENCED_PARAMETER(bValue);
-     UNREFERENCED_PARAMETER(returnStatus);
-     return FALSE;
-#endif
     }
 
     CcspTraceWarning(("Unsupported parameter '%s'\n", ParamName));
