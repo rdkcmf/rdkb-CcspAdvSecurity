@@ -20,15 +20,16 @@
 
 source $(dirname $(realpath ${0}))/advsec.sh
 
+KB=1024
 SAMPLING_TIME=10
 MAX_CPU_THRESHOLD=45
-MAX_RSS_THRESHOLD=20000 #kb
-LOWFREE_MEM_THRESHOLD=$((10 * 1024))
+MAX_RSS_THRESHOLD=$((20 * $KB)) #kb
+LOWFREE_MEM_THRESHOLD=$((10 * $KB))
 
 #syscfg contains value in MB.
 max_rss=`syscfg get Advsecurity_RabidMemoryLimit`
 if [ "$max_rss" != "" ]; then
-        MAX_RSS_THRESHOLD=$(($max_rss * 1024))
+        MAX_RSS_THRESHOLD=$(($max_rss * $KB))
 fi
 
 if [ "$1" != "" ]; then
@@ -124,6 +125,16 @@ log_agent_mem_statistics()
 		fi
 	fi
 
+	${RUNTIME_DIR}/bin/rabidsh -e 'cujo.nf.dostring([[print("nfluamem:"..collectgarbage("count"))]])'
+	nflua_rss=`dmesg | grep nfluamem: | tail -1 | cut -d':' -f2`
+	# nflua_rss is in bytes
+	nflua_rss=$(($nflua_rss / $KB))
+	echo_t "NFLua memory usage:$nflua_rss" >> $ADVSEC_AGENT_LOG_PATH
+
+	if [ "$nflua_rss" -ge "$MAX_RSS_THRESHOLD" ]; then
+		advsec_restart_rabid "NfluaHighRSS"
+		exit
+	fi
 }
 
 get_agent_pid_list
