@@ -53,7 +53,7 @@ then
         rm $DAEMONS_HIBERNATING
     fi
 
-    wait_for_lanipv6
+    wait_for_lanip
 
     start_rabid_services
 

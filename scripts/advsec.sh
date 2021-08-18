@@ -564,17 +564,18 @@ advsec_get_rabid_group_name() {
         echo $rabiduser
 }
 
-wait_for_lanipv6()
+wait_for_lanip()
 {
-    ipv6_retry_limit=6
-    while [ ${ipv6_retry_limit} -gt 0 ]; do
+    ip_retry_limit=6
+    while [ ${ip_retry_limit} -gt 0 ]; do
         lanipv6addr=`ip -6 a s brlan0 | grep global | cut -d " " -f 6`
-        if [ "$lanipv6addr" = "" ]; then
-             echo_t "Waiting for LAN ipv6 address..." >> ${ADVSEC_AGENT_LOG_PATH}
+        lanipv4addr=`ip -4 a s brlan0 | grep global | cut -d " " -f 6`
+        if [ "$lanipv6addr" = "" ] && [ "$lanipv4addr" = "" ]; then
+             echo_t "Waiting for LAN ipv6 and ipv4 address..." >> ${ADVSEC_AGENT_LOG_PATH}
              sleep 10
-             ipv6_retry_limit=$(expr $ipv6_retry_limit - 1)
+             ip_retry_limit=$(expr $ip_retry_limit - 1)
         else
-             echo_t "LAN IPv6 Address: $lanipv6addr" >> ${ADVSEC_AGENT_LOG_PATH}
+             echo_t "LAN IPv6 Address: $lanipv6addr and IPv4 Address: $lanipv4addr" >> ${ADVSEC_AGENT_LOG_PATH}
              break
         fi
     done
