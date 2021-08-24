@@ -467,9 +467,6 @@ advsec_cleanup_config() {
                 rm -rf ${ADVSEC_SAFEBRO_SETTING}
         fi
 
-        if [ -e ${ADVSEC_CLOUD_IP} ]; then
-                rm -rf ${ADVSEC_CLOUD_IP}
-        fi
 }
 
 advsec_cleanup_config_rabid() {
@@ -488,10 +485,6 @@ advsec_cleanup_config_rabid() {
         if [ -e ${ADV_PARENTAL_CONTROL_ACTIVEMACSFILE} ]; then
                 rm ${ADV_PARENTAL_CONTROL_ACTIVEMACSFILE}
         fi
-
-	if [ -e ${ADVSEC_CLOUD_IP} ]; then
-		rm ${ADVSEC_CLOUD_IP}
-	fi
 
 	if [ -e ${ADVSEC_CLOUD_HOST} ]; then
 		rm ${ADVSEC_CLOUD_HOST}
