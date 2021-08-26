@@ -570,7 +570,7 @@ wait_for_lanip()
     while [ ${ip_retry_limit} -gt 0 ]; do
         lanipv6addr=`ip -6 a s brlan0 | grep global | cut -d " " -f 6`
         lanipv4addr=`ip -4 a s brlan0 | grep global | cut -d " " -f 6`
-        if [ "$lanipv6addr" = "" ] && [ "$lanipv4addr" = "" ]; then
+        if [ "$lanipv6addr" = "" ] || [ "$lanipv4addr" = "" ]; then
              echo_t "Waiting for LAN ipv6 and ipv4 address..." >> ${ADVSEC_AGENT_LOG_PATH}
              sleep 10
              ip_retry_limit=$(expr $ip_retry_limit - 1)
