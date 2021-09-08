@@ -20,6 +20,12 @@
 
 source $(dirname $(realpath ${0}))/advsec.sh
 
+bridge_mode=`syscfg get bridge_mode`
+if [ "${bridge_mode}" = "2" ]; then
+        #Advsec Agent doesn't run in Bridge mode.
+        exit 0
+fi
+
 KB=1024
 SAMPLING_TIME=10
 MAX_CPU_THRESHOLD=45
@@ -127,11 +133,14 @@ log_agent_mem_statistics()
 
 	${RUNTIME_DIR}/bin/rabidsh -e 'cujo.nf.dostring([[print("nfluamem:"..collectgarbage("count"))]])'
 	nflua_rss=`dmesg | grep nfluamem: | tail -1 | cut -d':' -f2`
+	if [ "${nflua_rss}" = "" ]; then
+		nflua_rss=0
+	fi
 	# nflua_rss is in bytes
-	nflua_rss=$(($nflua_rss / $KB))
-	echo_t "NFLua memory usage:$nflua_rss" >> $ADVSEC_AGENT_LOG_PATH
+	nflua_rss=$((${nflua_rss} / $KB))
+	echo_t "NFLua memory usage:${nflua_rss}" >> $ADVSEC_AGENT_LOG_PATH
 
-	if [ "$nflua_rss" -ge "$MAX_RSS_THRESHOLD" ]; then
+	if [ "${nflua_rss}" -ge "${MAX_RSS_THRESHOLD}" ]; then
 		advsec_restart_rabid "NfluaHighRSS"
 		exit
 	fi
