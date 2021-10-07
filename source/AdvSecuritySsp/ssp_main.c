@@ -31,7 +31,7 @@
 #include "stdlib.h"
 #include "webconfig_framework.h"
 #include "safec_lib_common.h"
-
+#include <sys/stat.h>
 #define MAX_SUBSYSTEM_SIZE 32
 
 #define ADVSEC_CCSP_INIT_FILE_BOOTUP "/tmp/advsec_ccsp_initialized_bootup"
@@ -507,15 +507,12 @@ int main(int argc, char* argv[])
     check_component_crash(ADVSEC_CCSP_INIT_FILE_BOOTUP);
 
     CcspTraceInfo(("ADVSEC:----------------------touch /tmp/advsec_ccsp__initialized_bootup-------------------\n"));
-    char init_file[128] = {0};
-    rc = sprintf_s(init_file,sizeof(init_file),"touch %s",ADVSEC_CCSP_INIT_FILE_BOOTUP);
-    if(rc < EOK)
+    ret = creat(ADVSEC_CCSP_INIT_FILE_BOOTUP,S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+    if(ret < 0)
     {
-        ERR_CHK(rc);
         CcspTraceError(("Exit error - Error in copying init_file  %s:%d\n", __FUNCTION__, __LINE__));
         exit(0);
     }
-    system(init_file);
 
     if ( bRunAsDaemon )
     {

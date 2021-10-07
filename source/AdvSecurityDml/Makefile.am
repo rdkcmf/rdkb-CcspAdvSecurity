@@ -26,4 +26,4 @@ hardware_platform = i686-linux-gnu
 lib_LTLIBRARIES = libdmlasecurity.la
 libdmlasecurity_la_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/source/AdvSecurityDml -I$(top_srcdir)/source/AdvSecuritySsp $(CPPFLAGS) -I$(top_srcdir)/../Utopia/source/include/sysevent
 libdmlasecurity_la_SOURCES = plugin_main.c cosa_adv_security_internal.c cosa_adv_security_dml.c cosa_adv_security_webconfig.c advsecurity_helpers.c advsecurity_param.c
-libdmlasecurity_la_LDFLAGS = -lccsp_common -lsyscfg -lsysevent -lwebconfig_framework -lmsgpackc -ltrower-base64 $(SSP_LDFLAGS)
+libdmlasecurity_la_LDFLAGS = -lccsp_common -lsyscfg -lsysevent -lwebconfig_framework -lmsgpackc -ltrower-base64 -lsecure_wrapper $(SSP_LDFLAGS)
