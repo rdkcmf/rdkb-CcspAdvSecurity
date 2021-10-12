@@ -575,6 +575,16 @@ advsec_get_agent_group_name() {
         echo $agentuser
 }
 
+advsec_agent_loglevel()
+{
+      get_agentloglevel=`${RUNTIME_DIR}/bin/${CUJO_AGENT_SH} -e 'return cujo.log:level()'`
+      if [ "$get_agentloglevel" != "$1" ]; then
+         set_agentloglevel="${RUNTIME_DIR}/bin/${CUJO_AGENT_SH} -e cujo.log:level($1)"
+         ${set_agentloglevel}
+         echo_t "${CUJO_AGENT} LogLevel changed from LogLevel-$get_agentloglevel to LogLevel-$1" >> ${ADVSEC_AGENT_LOG_PATH}
+      fi
+}
+
 wait_for_lanip()
 {
     ip_retry_limit=6

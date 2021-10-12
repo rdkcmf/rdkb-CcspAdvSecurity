@@ -100,6 +100,7 @@ static char *g_DeviceFingerPrintEnabled = "Advsecurity_DeviceFingerPrint";
 static char *g_AdvSecuritySBEnabled       = "Advsecurity_SafeBrowsing";
 static char *g_AdvSecuritySFEnabled       = "Advsecurity_Softflowd";
 static char *g_DeviceFingerPrintLogginPeriod = "Advsecurity_LoggingPeriod";
+static char *g_DeviceFingerPrintLogLevel = "Advsecurity_LogLevel";
 static char *g_DeviceFingerPrintEndpointURL = "Advsecurity_EndpointURL";
 static char *g_AdvSecurityLookupTimeout = "Advsecurity_LookupTimeout";
 static char *g_AdvParentalControl = "Adv_PCActivate";
@@ -610,6 +611,7 @@ CosaSecurityInitialize
     }
 
     CosaAdvSecGetLoggingPeriod();
+    CosaAdvSecGetLogLevel();
     CosaAdvSecGetLookupTimeout();
     advsec_start_logger_thread();
     advsec_handle_sysevent_async();
@@ -1260,6 +1262,41 @@ ANSC_STATUS CosaAdvSecSetLoggingPeriod(ULONG value)
         g_pAdvSecAgent->ulLoggingPeriod = value;
         pthread_cond_signal(&logCond);
         pthread_mutex_unlock(&logMutex);
+    }
+    return returnStatus;
+}
+
+ANSC_STATUS CosaAdvSecGetLogLevel()
+{
+    ANSC_STATUS  returnStatus = ANSC_STATUS_SUCCESS;
+    ULONG value = ADVSEC_LogLevel_WARN;
+    returnStatus = CosaGetSysCfgUlong(g_DeviceFingerPrintLogLevel, &value);
+    g_pAdvSecAgent->ulLogLevel = value;
+    return returnStatus;
+}
+
+ANSC_STATUS CosaAdvSecSetLogLevel(ULONG value)
+{
+    ANSC_STATUS  returnStatus = ANSC_STATUS_SUCCESS;
+    char cmd[COMMAND_MAX] = {0};
+    errno_t rc = -1;
+
+    returnStatus = CosaSetSysCfgUlong(g_DeviceFingerPrintLogLevel, value);
+    if ( returnStatus == ANSC_STATUS_SUCCESS )
+    {
+        g_pAdvSecAgent->ulLogLevel = value;
+        rc = sprintf_s(cmd, sizeof(cmd), TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -agentloglevel %lu &", value);
+        if(rc < EOK)
+        {
+            ERR_CHK(rc);
+            return ANSC_STATUS_FAILURE;
+        }
+        system(cmd);
+        CcspTraceInfo(("CosaAdvSecSetLogLevel: success\n"));
+    }
+    else
+    {
+        CcspTraceError(("CosaAdvSecSetLogLevel: failed\n"));
     }
     return returnStatus;
 }

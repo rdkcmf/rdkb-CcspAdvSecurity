@@ -27,6 +27,10 @@
 #define ADVSEC_DEFAULT_LOG_TIMEOUT (60 * 24)
 #define ADVSEC_DEFAULT_LOOKUP_TIMEOUT 350
 #define ADVSEC_MAX_LOOKUP_TIMEOUT 6000
+#define ADVSEC_LogLevel_ERROR 1
+#define ADVSEC_LogLevel_WARN 2
+#define ADVSEC_LogLevel_INFO 3
+#define ADVSEC_LogLevel_VERBOSE 4
 
 typedef enum {
     ADVSEC_SAFEBROWSING=0,
@@ -112,6 +116,7 @@ _COSA_DATAMODEL_AGENT
     BOOL                        bEnable;
     PCOSA_DATAMODEL_ADVSEC      pAdvSec;
     ULONG                       ulLoggingPeriod;
+    ULONG                       ulLogLevel;
     PCOSA_DATAMODEL_ADVPARENTALCONTROL pAdvPC;
     PCOSA_DATAMODEL_ADVPC_RFC pAdvPC_RFC;
     PCOSA_DATAMODEL_PRIVACYPROTECTION pPrivProt;
@@ -153,6 +158,16 @@ CosaAdvSecGetLoggingPeriod
 
 ANSC_STATUS
 CosaAdvSecSetLoggingPeriod
+    (
+        ULONG bValue
+    );
+ANSC_STATUS
+CosaAdvSecGetLogLevel
+    (
+    );
+
+ANSC_STATUS
+CosaAdvSecSetLogLevel
     (
         ULONG bValue
     );

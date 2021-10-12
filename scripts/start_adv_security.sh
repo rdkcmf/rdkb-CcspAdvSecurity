@@ -501,3 +501,7 @@ if [ "$1" = "-restartAgent" ] && [ -e ${ADVSEC_DF_ENABLED_PATH} ]
 then
     advsec_restart_agent $2
 fi
+
+if [ "$1" = "-agentloglevel" ]; then
+   advsec_agent_loglevel $2
+fi

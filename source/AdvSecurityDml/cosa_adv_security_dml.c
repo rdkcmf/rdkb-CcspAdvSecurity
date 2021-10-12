@@ -266,6 +266,19 @@ DeviceFingerPrint_GetParamUlongValue
         return TRUE;
     }
 
+    rc = strcmp_s("LogLevel", strlen("LogLevel"), ParamName, &ind);
+    ERR_CHK(rc);
+    if((rc == EOK) && (!ind))
+    {
+#if !(defined(_COSA_INTEL_XB3_ARM_) || defined(_COSA_BCM_MIPS_))
+        *puLong = g_pAdvSecAgent->ulLogLevel;
+        return TRUE;
+#else
+        UNREFERENCED_PARAMETER(puLong);
+        return FALSE;
+#endif
+    }
+
     CcspTraceWarning(("%s: Unsupported parameter '%s'\n", __FUNCTION__, ParamName));
     return FALSE;
 }
@@ -339,6 +352,36 @@ DeviceFingerPrint_SetParamUlongValue
         }
 
         return TRUE;
+    }
+
+    rc = strcmp_s("LogLevel", strlen("LogLevel"), ParamName, &ind);
+    ERR_CHK(rc);
+    if((rc == EOK) && (!ind))
+    {
+#if !(defined(_COSA_INTEL_XB3_ARM_) || defined(_COSA_BCM_MIPS_))
+        if ( bValue < ADVSEC_LogLevel_ERROR || bValue > ADVSEC_LogLevel_VERBOSE )
+        {
+            CcspTraceInfo(("%s Values Log Level: Out of range\n", __FUNCTION__));
+            return FALSE;
+        }
+
+        if(bValue == g_pAdvSecAgent->ulLogLevel)
+                return TRUE;
+
+        returnStatus = CosaAdvSecSetLogLevel(bValue);
+
+        if ( returnStatus != ANSC_STATUS_SUCCESS )
+        {
+            CcspTraceInfo(("%s EXIT Error\n", __FUNCTION__));
+            return  returnStatus;
+        }
+
+        return TRUE;
+#else
+     UNREFERENCED_PARAMETER(bValue);
+     UNREFERENCED_PARAMETER(returnStatus);
+     return FALSE;
+#endif
     }
 
     CcspTraceWarning(("%s: Unsupported parameter '%s'\n", __FUNCTION__, ParamName));
