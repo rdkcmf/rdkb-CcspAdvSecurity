@@ -91,6 +91,7 @@
                         <func_SetParamBoolValue>SafeBrowsing_SetParamBoolValue</func_SetParamBoolValue>
                         <func_GetParamUlongValue>SafeBrowsing_GetParamUlongValue</func_GetParamUlongValue>
                         <func_SetParamUlongValue>SafeBrowsing_SetParamUlongValue</func_SetParamUlongValue>
+                        <func_GetParamStringValue>SafeBrowsing_GetParamStringValue</func_GetParamStringValue>
                         <func_Validate>SafeBrowsing_Validate</func_Validate>
                         <func_Commit>SafeBrowsing_Commit</func_Commit>
                         <func_Rollback>SafeBrowsing_Rollback</func_Rollback>
@@ -112,6 +113,66 @@
                           <name>LookupTimeoutExceededCount</name>
                           <type>unsignedInt</type>
                           <syntax>uint32</syntax>
+                          <writable>false</writable>
+                        </parameter>
+                        <parameter>
+                          <name>Threshold</name>
+                          <type>unsignedInt</type>
+                          <syntax>uint32</syntax>
+                          <writable>false</writable>
+                        </parameter>
+                        <parameter>
+                          <name>Timeout</name>
+                          <type>unsignedInt</type>
+                          <syntax>uint32</syntax>
+                          <writable>false</writable>
+                        </parameter>
+                        <parameter>
+                          <name>Cachettl</name>
+                          <type>unsignedInt</type>
+                          <syntax>uint32</syntax>
+                          <writable>false</writable>
+                        </parameter>
+                        <parameter>
+                          <name>Ttl</name>
+                          <type>unsignedInt</type>
+                          <syntax>uint32</syntax>
+                          <writable>false</writable>
+                        </parameter>
+                        <parameter>
+                          <name>WhitelistMaxEntries</name>
+                          <type>unsignedInt</type>
+                          <syntax>uint32</syntax>
+                          <writable>false</writable>
+                        </parameter>
+                        <parameter>
+                          <name>Endpoint</name>
+                          <type>string</type>
+                          <syntax>string</syntax>
+                          <writable>false</writable>
+                        </parameter>
+                        <parameter>
+                          <name>Blockpage</name>
+                          <type>string</type>
+                          <syntax>string</syntax>
+                          <writable>false</writable>
+                        </parameter>
+                        <parameter>
+                          <name>Warnpage</name>
+                          <type>string</type>
+                          <syntax>string</syntax>
+                          <writable>false</writable>
+                        </parameter>
+                        <parameter>
+                          <name>Cacheurl</name>
+                          <type>string</type>
+                          <syntax>string</syntax>
+                          <writable>false</writable>
+                        </parameter>
+                        <parameter>
+                          <name>OtmDedupFqdn</name>
+                          <type>string</type>
+                          <syntax>string</syntax>
                           <writable>false</writable>
                         </parameter>
                       </parameters>

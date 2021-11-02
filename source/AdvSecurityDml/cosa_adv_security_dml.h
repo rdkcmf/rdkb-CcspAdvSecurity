@@ -107,6 +107,7 @@ AdvancedSecurity_SetParamStringValue
     *  SafeBrowsing_SetParamBoolValue
     *  SafeBrowsing_GetParamUlongValue
     *  SafeBrowsing_SetParamUlongValue
+    *  SafeBrowsing_GetParamStringValue
     *  SafeBrowsing_Validate
     *  SafeBrowsing_Commit
     *  SafeBrowsing_Rollback
@@ -142,6 +143,16 @@ SafeBrowsing_SetParamUlongValue
         char*                       ParamName,
         ULONG                       bValue
     );
+
+ULONG
+SafeBrowsing_GetParamStringValue
+    (
+        ANSC_HANDLE                 hInsContext,
+        char*                       ParamName,
+        char*                       pValue,
+        ULONG*                      pUlSize
+    );
+
 BOOL
 SafeBrowsing_Validate
     (

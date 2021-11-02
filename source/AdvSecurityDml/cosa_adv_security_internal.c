@@ -77,6 +77,7 @@
 #define ADVSEC_CLOUD_HOST "/tmp/advsec_cloud_host"
 #define ADVSEC_CLOUD_IP "/tmp/advsec_cloud_ipv4"
 #define ADVSEC_DEFAULT_CM_MAC "00:1A:2B:11:22:33"
+#define SAFEBRO_CONFIG_FILE_PATH "/tmp/safebro.json"
 
 #ifdef CONFIG_CISCO
 #define CONFIG_VENDOR_NAME  "Cisco"
@@ -242,6 +243,108 @@ static BOOL advsec_read_from_file(char *fpath, char *str)
         return 1;
     }
     return 0;
+}
+
+ANSC_STATUS CosaAdvSecFetchSbConfig(char* paramName, char* pValue, ULONG* pUlSize, ULONG* puLong)
+{
+    errno_t rc1 = -1, rc2 = -1;
+    int ind1 = -1, ind2 = -1, i = 0, j = 0, paramLen = 0;
+    cJSON *parameterObj = NULL;
+    cJSON *json = NULL;
+    char* data = NULL;
+    char json_key[15] = {0};
+
+    data = (char *) malloc(1024*sizeof(char));
+    if(NULL == data)
+    {
+        CcspTraceError(("%s : malloc failed\n", __FUNCTION__));
+        return ANSC_STATUS_FAILURE;
+    }
+    memset(data, 0, 1024);
+
+    if( !advsec_read_from_file(SAFEBRO_CONFIG_FILE_PATH,data) )
+    {
+        CcspTraceWarning(("Error in opening safebro config JSON file %s\n", SAFEBRO_CONFIG_FILE_PATH));
+        return ANSC_STATUS_FAILURE;
+    }
+    else if ( strlen(data) != 0)
+    {
+        json = cJSON_Parse(data);
+        if (data != NULL)
+        {
+            free(data);
+            data = NULL;
+        }
+        if( !json )
+        {
+            CcspTraceWarning(("json file parser error %s:%d\n", __FUNCTION__,__LINE__));
+            return ANSC_STATUS_FAILURE;
+        }
+        else
+        {
+            rc1 = strcmp_s("WhitelistMaxEntries", strlen("WhitelistMaxEntries"), paramName, &ind1);
+            ERR_CHK(rc1);
+            rc2 = strcmp_s("OtmDedupFqdn", strlen("OtmDedupFqdn"), paramName, &ind2);
+            ERR_CHK(rc2);
+            if( ((rc1 == EOK) && (!ind1)) || ((rc2 == EOK) && (!ind2)) )
+            {
+                paramLen = (int)strlen(paramName);
+                for (i = 0, j = 0; i < paramLen; i++, j++)
+                {
+                    if(isupper(paramName[i]) && i != 0)
+                    {
+                        json_key[j] = '_';
+                        j++;
+                        json_key[j] = tolower(paramName[i]);
+                    }
+                    else
+                    {
+                        json_key[j] = paramName[i];
+                    }
+                }
+            }
+            else
+            {
+                rc1 = strcpy_s(json_key, sizeof(json_key), paramName);
+                if(rc1 != EOK)
+                {
+                    ERR_CHK(rc1);
+                    return ANSC_STATUS_FAILURE;
+                }
+            }
+
+            json_key[0]=tolower(json_key[0]);
+            parameterObj = cJSON_GetObjectItem( json, json_key );
+            if ( NULL != parameterObj)
+            {
+                if (parameterObj->valuestring)
+                {
+                    rc1 = strcpy_s(pValue, strlen(parameterObj->valuestring) + 1, parameterObj->valuestring);
+                    if(rc1 != EOK)
+                    {
+                        ERR_CHK(rc1);
+                        return ANSC_STATUS_FAILURE;
+                    }
+                    *pUlSize = AnscSizeOfString(pValue);
+                }
+                else
+                {
+                    *puLong = (unsigned long) parameterObj->valueint;
+                }
+            }
+            else
+            {
+                CcspTraceWarning(("%s - parameterObj is NULL\n", __FUNCTION__ ));
+            }
+            cJSON_Delete(json);
+        }
+    }
+    else
+    {
+        CcspTraceWarning(("SAFEBRO_CONFIG_FILE_PATH %s is empty\n", SAFEBRO_CONFIG_FILE_PATH));
+        return ANSC_STATUS_FAILURE;
+    }
+    return ANSC_STATUS_SUCCESS;
 }
 
 ANSC_HANDLE

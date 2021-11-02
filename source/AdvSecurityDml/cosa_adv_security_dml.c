@@ -710,6 +710,7 @@ AdvancedSecurity_SetParamStringValue
     *  SafeBrowsing_SetParamBoolValue
     *  SafeBrowsing_GetParamUlongValue
     *  SafeBrowsing_SetParamUlongValue
+    *  SafeBrowsing_GetParamStringValue
     *  SafeBrowsing_Validate
     *  SafeBrowsing_Commit
     *  SafeBrowsing_Rollback
@@ -898,16 +899,21 @@ SafeBrowsing_GetParamUlongValue
 {
     UNREFERENCED_PARAMETER(hInsContext);
     /* check the parameter name and return the corresponding value */
-    errno_t rc = -1;
-    int ind = -1;
+    errno_t rc1 = -1;
+    int ind1 = -1;
+#if !(defined(_COSA_INTEL_XB3_ARM_) || defined(_COSA_BCM_MIPS_))
+    errno_t rc2 = -1, rc3 = -1, rc4 = -1, rc5 = -1;
+    int ind2 = -1, ind3 = -1, ind4 = -1, ind5 = -1;
+    ANSC_STATUS  returnStatus = ANSC_STATUS_SUCCESS;
+#endif
     PCOSA_DATAMODEL_AGENT       pMyObject     = (PCOSA_DATAMODEL_AGENT)g_pAdvSecAgent;
 
     if(ParamName == NULL)
         return FALSE;
 
-    rc = strcmp_s("LookupTimeout", strlen("LookupTimeout"), ParamName, &ind);
-    ERR_CHK(rc);
-    if((rc == EOK) && (!ind))
+    rc1 = strcmp_s("LookupTimeout", strlen("LookupTimeout"), ParamName, &ind1);
+    ERR_CHK(rc1);
+    if((rc1 == EOK) && (!ind1))
     {
         if ( !pMyObject->bEnable )
         {
@@ -919,9 +925,9 @@ SafeBrowsing_GetParamUlongValue
         return TRUE;
     }
 
-    rc = strcmp_s("LookupTimeoutExceededCount", strlen("LookupTimeoutExceededCount"), ParamName, &ind);
-    ERR_CHK(rc);
-    if((rc == EOK) && (!ind))
+    rc1 = strcmp_s("LookupTimeoutExceededCount", strlen("LookupTimeoutExceededCount"), ParamName, &ind1);
+    ERR_CHK(rc1);
+    if((rc1 == EOK) && (!ind1))
     {
         if ( !pMyObject->bEnable )
         {
@@ -932,6 +938,37 @@ SafeBrowsing_GetParamUlongValue
         *puLong = CosaAdvSecGetLookupTimeoutExceededCount();
         return TRUE;
     }
+
+#if !(defined(_COSA_INTEL_XB3_ARM_) || defined(_COSA_BCM_MIPS_))
+    rc1 = strcmp_s("Threshold", strlen("Threshold"), ParamName, &ind1);
+    ERR_CHK(rc1);
+    rc2 = strcmp_s("Timeout", strlen("Timeout"), ParamName, &ind2);
+    ERR_CHK(rc2);
+    rc3 = strcmp_s("Cachettl", strlen("Cachettl"), ParamName, &ind3);
+    ERR_CHK(rc3);
+    rc4 = strcmp_s("Ttl", strlen("Ttl"), ParamName, &ind4);
+    ERR_CHK(rc4);
+    rc5 = strcmp_s("WhitelistMaxEntries", strlen("WhitelistMaxEntries"), ParamName, &ind5);
+    ERR_CHK(rc5);
+
+    if( ((rc1 == EOK) && (!ind1)) || ((rc2 == EOK) && (!ind2)) || ((rc3 == EOK) && (!ind3)) ||
+        ((rc4 == EOK) && (!ind4)) || ((rc5 == EOK) && (!ind5)) )
+    {
+        if ( !pMyObject->bEnable )
+        {
+            CcspTraceInfo(("%s: Advsec: Device Finger Printing is disabled\n", __FUNCTION__));
+            return FALSE;
+        }
+        returnStatus = CosaAdvSecFetchSbConfig(ParamName, NULL, NULL, puLong);
+        if ( returnStatus != ANSC_STATUS_SUCCESS )
+        {
+            CcspTraceError(("%s EXIT Error\n", __FUNCTION__));
+            return  returnStatus;
+        }
+
+        return TRUE;
+    }
+#endif
 
     CcspTraceWarning(("%s: Unsupported parameter '%s'\n", __FUNCTION__, ParamName));
     return FALSE;
@@ -1016,6 +1053,95 @@ SafeBrowsing_SetParamUlongValue
 
     CcspTraceWarning(("%s: Unsupported parameter '%s'\n", __FUNCTION__, ParamName));
     return FALSE;
+}
+
+/**********************************************************************
+
+    caller:     owner of this object
+
+    prototype:
+
+        BOOL
+        SafeBrowsing_GetParamStringValue
+            (
+                ANSC_HANDLE                 hInsContext,
+                char*                       ParamName,
+                char*                       pValue
+            );
+
+    description:
+
+        This function is called to retrieve Unsigned Int parameter value;
+
+    argument:   ANSC_HANDLE                 hInsContext,
+                The instance handle;
+
+                char*                       ParamName,
+                The parameter name;
+
+                char*                       pValue,
+                The string value buffer;
+
+                ULONG*                      pUlSize
+                The buffer of length of string value;
+                Usually size of 1023 will be used.
+                If it's not big enough, put required size here and return 1;
+
+    return:     TRUE if succeeded;
+
+                FALSE if not supported.
+
+**********************************************************************/
+ULONG
+SafeBrowsing_GetParamStringValue
+    (
+        ANSC_HANDLE                 hInsContext,
+        char*                       ParamName,
+        char*                       pValue,
+        ULONG*                      pUlSize
+    )
+{
+    UNREFERENCED_PARAMETER(hInsContext);
+#if (defined(_COSA_INTEL_XB3_ARM_) || defined(_COSA_BCM_MIPS_))
+    UNREFERENCED_PARAMETER(ParamName);
+    UNREFERENCED_PARAMETER(pValue);
+    UNREFERENCED_PARAMETER(pUlSize);
+#else
+    ANSC_STATUS returnStatus = ANSC_STATUS_SUCCESS;
+    /* check the parameter name and return the corresponding value */
+    errno_t rc1 = -1, rc2 = -1, rc3 = -1, rc4 = -1, rc5 = -1;
+    int ind1 = -1, ind2 = -1, ind3 = -1, ind4 = -1, ind5 = -1;
+    PCOSA_DATAMODEL_AGENT       pMyObject     = (PCOSA_DATAMODEL_AGENT)g_pAdvSecAgent;
+    rc1 = strcmp_s("Endpoint", strlen("Endpoint"), ParamName, &ind1);
+    ERR_CHK(rc1);
+    rc2 = strcmp_s("Blockpage", strlen("Blockpage"), ParamName, &ind2);
+    ERR_CHK(rc2);
+    rc3 = strcmp_s("Warnpage", strlen("Warnpage"), ParamName, &ind3);
+    ERR_CHK(rc3);
+    rc4 = strcmp_s("Cacheurl", strlen("Cacheurl"), ParamName, &ind4);
+    ERR_CHK(rc4);
+    rc5 = strcmp_s("OtmDedupFqdn", strlen("OtmDedupFqdn"), ParamName, &ind5);
+    ERR_CHK(rc5);
+
+    if( ((rc1 == EOK) && (!ind1)) || ((rc2 == EOK) && (!ind2)) || ((rc3 == EOK) && (!ind3)) ||
+        ((rc4 == EOK) && (!ind4)) || ((rc5 == EOK) && (!ind5)) )
+    {
+        if ( !pMyObject->bEnable )
+        {
+            CcspTraceInfo(("%s: Advsec: Device Finger Printing is disabled\n", __FUNCTION__));
+            return -1;
+        }
+        returnStatus = CosaAdvSecFetchSbConfig(ParamName, pValue, pUlSize, NULL);
+        if ( returnStatus != ANSC_STATUS_SUCCESS )
+        {
+            CcspTraceError(("%s EXIT Error\n", __FUNCTION__));
+            return  returnStatus;
+        }
+        return returnStatus;
+    }
+#endif
+    CcspTraceWarning(("%s: Unsupported parameter '%s'\n", __FUNCTION__, ParamName));
+    return -1;
 }
 
 /**********************************************************************  

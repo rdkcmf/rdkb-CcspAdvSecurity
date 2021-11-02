@@ -61,6 +61,7 @@ COSA_Init
     pPlugInfo->RegisterFunction(pPlugInfo->hContext, "SafeBrowsing_SetParamBoolValue",  SafeBrowsing_SetParamBoolValue);
     pPlugInfo->RegisterFunction(pPlugInfo->hContext, "SafeBrowsing_GetParamUlongValue",  SafeBrowsing_GetParamUlongValue);
     pPlugInfo->RegisterFunction(pPlugInfo->hContext, "SafeBrowsing_SetParamUlongValue",  SafeBrowsing_SetParamUlongValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "SafeBrowsing_GetParamStringValue",  SafeBrowsing_GetParamStringValue);
     pPlugInfo->RegisterFunction(pPlugInfo->hContext, "SafeBrowsing_Validate",  SafeBrowsing_Validate);
     pPlugInfo->RegisterFunction(pPlugInfo->hContext, "SafeBrowsing_Commit",  SafeBrowsing_Commit);
     pPlugInfo->RegisterFunction(pPlugInfo->hContext, "SafeBrowsing_Rollback",  SafeBrowsing_Rollback);

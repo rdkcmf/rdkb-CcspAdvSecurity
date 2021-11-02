@@ -336,4 +336,13 @@ CosaAdvSecOTMDeInit
     (
         ANSC_HANDLE hThisObject
     );
+
+ANSC_STATUS
+CosaAdvSecFetchSbConfig
+    (
+        char* paramName,
+        char* pValue,
+        ULONG* pUlSize,
+        ULONG* puLong
+    );
 #endif
