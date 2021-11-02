@@ -162,7 +162,21 @@ pErr advsec_webconfig_process_request(void *Data)
 
                 CcspTraceInfo(("%s: Return value = %d\n",__FUNCTION__, ret));
 
-                execRetVal->ErrorCode = ret;
+                if ( ret == BLOB_EXEC_SUCCESS )
+                {
+                    if ( advsec->param->fingerprint_enable == TRUE )
+                    {
+                        strncpy(execRetVal->ErrorMsg,"enabled",sizeof(execRetVal->ErrorMsg)-1);
+                    }
+                    else
+                    {
+                        strncpy(execRetVal->ErrorMsg,"disabled",sizeof(execRetVal->ErrorMsg)-1);
+                    }
+                }
+                else
+                {
+                    execRetVal->ErrorCode = ret;
+                }
             }
             else
             {
