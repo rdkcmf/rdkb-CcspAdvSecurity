@@ -1415,7 +1415,11 @@ void advsec_handle_sysevent_notification(char *event, char *val)
                 system(cmd);
             }
 
+#ifndef _XF3_PRODUCT_REQ_
             if((val[0] == '2') && (val[1] == '\0'))
+#else
+            if((val[0] == '3') && (val[1] == '\0'))
+#endif
             {
                 CcspTraceWarning(("CcspAdvSecurity: Received Bridge Mode On\n"));
                 rc = strcpy_s(cmd, sizeof(cmd), TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -disable &");
