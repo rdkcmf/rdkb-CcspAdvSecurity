@@ -90,17 +90,18 @@ then
         else
             disable_icmpv6
         fi
-        if [ "$ADVSEC_OTM_RFC_ENABLED" = "1" ]; then
-            enable_otm
-        else
-            disable_otm
-        fi
     fi
 
     if [ "$ADVSEC_WS_DISCOVERY_RFC_ENABLED" = "1" ]; then
             enable_wsdiscovery
     else
             disable_wsdiscovery
+    fi
+
+    if [ "$ADVSEC_OTM_RFC_ENABLED" = "1" ]; then
+            enable_otm
+    else
+            disable_otm
     fi
 
     rm $ADVSEC_INITIALIZING
