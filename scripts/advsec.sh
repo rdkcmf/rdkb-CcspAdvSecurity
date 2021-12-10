@@ -77,6 +77,9 @@ if [ "$BOX_TYPE" != "XB3" ] && [ "$BOX_TYPE" != "XF3" ]; then
 export ADVSEC_DF_ICMPv6_ENABLED_PATH=/tmp/advsec_df_icmpv6_enabled
 fi
 export ADVSEC_WS_DISCOVERY_ENABLED_PATH=/tmp/advsec_ws_discovery_enabled
+export ADVSEC_RAPTR_ENABLED_PATH=/tmp/advsec_raptr_enabled
+export CUJO_AGENT_RULES_V4_PATH=/tmp/.cujo-agent-rules
+export CUJO_AGENT_RULES_V6_PATH=/tmp/.cujo-agent-rules_v6
 
 export DF_ENABLED=`syscfg get Advsecurity_DeviceFingerPrint`
 export ADVSEC_SB_ENABLED=`syscfg get Advsecurity_SafeBrowsing`
@@ -90,6 +93,7 @@ export DF_ICMPv6_RFC_ENABLED=`syscfg get Adv_DFICMPv6RFCEnable`
 fi
 export ADVSEC_OTM_RFC_ENABLED=`syscfg get Adv_AdvSecOTMRFCEnable`
 export ADVSEC_WS_DISCOVERY_RFC_ENABLED=`syscfg get Adv_WSDisAnaRFCEnable`
+export ADVSEC_RAPTR_RFC_ENABLED=`syscfg get Adv_RaptrRFCEnable`
 
 export ADV_PARENTAL_CONTROL_ACTIVATED_LOG=ADVANCED_PARENTAL_CONTROL_ACTIVATED
 export ADV_PARENTAL_CONTROL_DEACTIVATED_LOG=ADVANCED_PARENTAL_CONTROL_DEACTIVATED
@@ -112,6 +116,8 @@ export ADV_OTM_RFC_ENABLE_LOG=ADVANCE_SECURITY_OTM_ENABLED
 export ADV_OTM_RFC_DISABLE_LOG=ADVANCE_SECURITY_OTM_DISABLED
 export ADV_WS_DISCOVERY_RFC_ENABLE_LOG=ADVANCE_SECURITY_WS_DISCOVERY_ENABLED
 export ADV_WS_DISCOVERY_RFC_DISABLE_LOG=ADVANCE_SECURITY_WS_DISCOVERY_DISABLED
+export ADV_RAPTR_RFC_ENABLE_LOG=ADVANCE_SECURITY_RAPTR_ENABLED
+export ADV_RAPTR_RFC_DISABLE_LOG=ADVANCE_SECURITY_RAPTR_DISABLED
 
 export ADVSEC_SAFEBRO_SETTING="${RW_DIR}/safebro.json"
 
@@ -365,11 +371,14 @@ advsec_initialize_nfq_ct()
 
 advsec_agent_create_ipsets()
 {
-    ipset create cujo_fingerprint hash:mac -exist
-    ipset create cujo_iotblock_mac hash:mac -exist
-    ipset create cujo_iotblock_ip4 hash:ip family inet -exist
-    ipset create cujo_iotblock_ip6 hash:ip family inet6 -exist
-
+    if [ -f $ADVSEC_RAPTR_ENABLED_PATH ]; then
+        raptr set -n | grep ipset | bash
+    else
+        ipset create cujo_fingerprint hash:mac -exist
+        ipset create cujo_iotblock_mac hash:mac -exist
+        ipset create cujo_iotblock_ip4 hash:ip family inet -exist
+        ipset create cujo_iotblock_ip6 hash:ip family inet6 -exist
+    fi
     touch ${ADVSEC_IPSETLIST_CREATED}
 }
 
@@ -381,51 +390,6 @@ advsec_agent_flush_ipsets()
     ipset destroy cujo_iotblock_ip4
     ipset destroy cujo_iotblock_ip6
     rm -f ${ADVSEC_IPSETLIST_CREATED}
-}
-
-advsec_agent_chain_cleanup()
-{
-    if ((iptables -L ${INPUT_CHAIN} &&
-         iptables -L ${OUTPUT_CHAIN}
-         iptables -L ${FORWARD_CHAIN})>& /dev/null); then
-        echo_t "ipv4 Chain exists"
-        IPTABLES="iptables"
-    fi
-
-    if ((ip6tables -L ${INPUT_CHAIN} &&
-         ip6tables -L ${OUTPUT_CHAIN}
-         ip6tables -L ${FORWARD_CHAIN})>& /dev/null); then
-        echo_t "ipv6 Chain exists"
-        IPTABLES="$IPTABLES ip6tables"
-    fi
-
-    if [ "${IPTABLES}" != "" ]; then
-        for ipt in ${IPTABLES}; do
-            chains=`${ipt} -w -S | grep -- "^-N ${CHAIN_PREFIX}" | cut -f2 -d' '`
-
-            echo "$chains" | while read -r chain; do
-                    ${ipt} -w -F ${chain}
-            done
-
-            echo "$chains" | while read -r chain; do
-                    if ! echo -- "${ENTRY_CHAINS}" | grep -wq -- "${chain}"; then
-                            ${ipt} -w -X ${chain}
-                    fi
-            done
-
-            ${ipt} -D INPUT -j CUJO_INPUT
-            ${ipt} -D OUTPUT -j CUJO_OUTPUT
-            ${ipt} -D FORWARD -j CUJO_FORWARD
-            ${ipt} -w -X CUJO_FORWARD
-            ${ipt} -w -X CUJO_INPUT
-            ${ipt} -w -X CUJO_OUTPUT
-        done
-    fi
-    
-    ipset list -name | grep -- "^${SET_PREFIX}" | while read -r set; do
-        ipset destroy ${set}
-    done
-    trap - EXIT
 }
 
 advsec_agent_restart_needed()
@@ -488,31 +452,35 @@ advsec_cleanup_config() {
 }
 
 advsec_cleanup_config_agent() {
-        if [ -e $DAEMONS_HIBERNATING ]; then
-                rm -f $DAEMONS_HIBERNATING
-        fi
+    if [ -e ${ADVSEC_IPSETLIST_CREATED} ]; then
+        rm -f ${ADVSEC_IPSETLIST_CREATED}
+    fi
 
-        if [ -e ${ADVSEC_ASSOC_SUCCESS} ]; then
-                rm -f ${ADVSEC_ASSOC_SUCCESS}
-        fi
+    if [ -e $DAEMONS_HIBERNATING ]; then
+        rm -f $DAEMONS_HIBERNATING
+    fi
 
-	if [ -e ${ADVSEC_SAFEBRO_SETTING} ]; then
-		rm ${ADVSEC_SAFEBRO_SETTING}
-	fi
+    if [ -e ${ADVSEC_ASSOC_SUCCESS} ]; then
+        rm -f ${ADVSEC_ASSOC_SUCCESS}
+    fi
 
-        if [ -e ${ADV_PARENTAL_CONTROL_ACTIVEMACSFILE} ]; then
-                rm ${ADV_PARENTAL_CONTROL_ACTIVEMACSFILE}
-        fi
+    if [ -e ${ADVSEC_SAFEBRO_SETTING} ]; then
+        rm ${ADVSEC_SAFEBRO_SETTING}
+    fi
 
-	if [ -e ${ADVSEC_CLOUD_HOST} ]; then
-		rm ${ADVSEC_CLOUD_HOST}
-	fi
+    if [ -e ${ADV_PARENTAL_CONTROL_ACTIVEMACSFILE} ]; then
+        rm ${ADV_PARENTAL_CONTROL_ACTIVEMACSFILE}
+    fi
 
-	if [ -e ${ADVSEC_DEVICE_CERT} ]; then
-		rm ${ADVSEC_DEVICE_CERT}
-	fi
+    if [ -e ${ADVSEC_CLOUD_HOST} ]; then
+        rm ${ADVSEC_CLOUD_HOST}
+    fi
 
-        advsec_cleanup_config
+    if [ -e ${ADVSEC_DEVICE_CERT} ]; then
+        rm ${ADVSEC_DEVICE_CERT}
+    fi
+
+    advsec_cleanup_config
 }
 
 advsec_restart_agent() {
@@ -536,7 +504,7 @@ advsec_restart_agent() {
 
         if [ ! -e ${ADVSEC_IPSETLIST_CREATED} ]
         then
-                advsec_agent_create_ipsets
+            advsec_agent_create_ipsets
         fi
 
         advsec_start_agent

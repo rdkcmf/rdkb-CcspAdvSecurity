@@ -346,6 +346,22 @@
                   </parameter>
                 </parameters>
             </object>
+            <object>
+              <name>AdvSecAgentRaptr</name>
+              <objectType>object</objectType>
+                <functions>
+                  <func_GetParamBoolValue>AdvSecAgentRaptr_RFC_GetParamBoolValue</func_GetParamBoolValue>
+                  <func_SetParamBoolValue>AdvSecAgentRaptr_RFC_SetParamBoolValue</func_SetParamBoolValue>
+                </functions>
+                <parameters>
+                  <parameter>
+                    <name>Enable</name>
+                    <type>boolean</type>
+                    <syntax>bool</syntax>
+                    <writable>true</writable>
+                  </parameter>
+                </parameters>
+            </object>
             </objects>
         </object>
       </objects>

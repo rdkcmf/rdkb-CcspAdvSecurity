@@ -90,6 +90,9 @@ COSA_Init
     pPlugInfo->RegisterFunction(pPlugInfo->hContext, "AdvancedSecurityOTM_RFC_GetParamBoolValue", AdvancedSecurityOTM_RFC_GetParamBoolValue);
     pPlugInfo->RegisterFunction(pPlugInfo->hContext, "AdvancedSecurityOTM_RFC_SetParamBoolValue", AdvancedSecurityOTM_RFC_SetParamBoolValue);
 
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "AdvSecAgentRaptr_RFC_GetParamBoolValue", AdvSecAgentRaptr_RFC_GetParamBoolValue);
+    pPlugInfo->RegisterFunction(pPlugInfo->hContext, "AdvSecAgentRaptr_RFC_SetParamBoolValue", AdvSecAgentRaptr_RFC_SetParamBoolValue);
+
     /* Create Object for Settings */
     g_pAdvSecAgent = (PCOSA_DATAMODEL_AGENT)CosaSecurityCreate();
 

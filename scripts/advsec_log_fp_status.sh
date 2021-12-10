@@ -98,6 +98,11 @@ check_status()
         fi
     fi
 
+    if [ -e ${ADVSEC_RAPTR_ENABLED_PATH} ]; then
+        print_telemetry_log ${ADV_RAPTR_RFC_ENABLE_LOG} ${ADVSEC_AGENT_LOG_PATH}
+    else
+        print_telemetry_log ${ADV_RAPTR_RFC_DISABLE_LOG} ${ADVSEC_AGENT_LOG_PATH}
+    fi
 }
 
 print_telemetry_log()

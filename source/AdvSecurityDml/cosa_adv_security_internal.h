@@ -82,6 +82,12 @@ _COSA_DATAMODEL_ADVSECOTM_RFC {
 COSA_DATAMODEL_ADVSECOTM_RFC,  *PCOSA_DATAMODEL_ADVSECOTM_RFC;
 
 typedef  struct
+_COSA_DATAMODEL_RAPTR_RFC {
+    BOOL            bEnable;
+}
+COSA_DATAMODEL_RAPTR_RFC,  *PCOSA_DATAMODEL_RAPTR_RFC;
+
+typedef  struct
 _COSA_DATAMODEL_AGENT_SOFTFLOWD {
     BOOL						bEnable;
 }
@@ -125,6 +131,7 @@ _COSA_DATAMODEL_AGENT
     PCOSA_DATAMODEL_DEVICEFINGERPRINTICMPv6_RFC pDFIcmpv6_RFC;
     PCOSA_DATAMODEL_WSDISCOVERYANALYSIS_RFC pWSDiscoveryAnalysis_RFC;
     PCOSA_DATAMODEL_ADVSECOTM_RFC pAdvSecOTM_RFC;
+    PCOSA_DATAMODEL_RAPTR_RFC pRaptr_RFC;
     PCOSA_DATAMODEL_RABID       pRabid;
     int         	iStatus;
     int             iState;
@@ -334,6 +341,18 @@ CosaAdvSecOTMInit
 
 ANSC_STATUS
 CosaAdvSecOTMDeInit
+    (
+        ANSC_HANDLE hThisObject
+    );
+
+ANSC_STATUS
+CosaAdvSecAgentRaptrInit
+    (
+        ANSC_HANDLE hThisObject
+    );
+
+ANSC_STATUS
+CosaAdvSecAgentRaptrDeInit
     (
         ANSC_HANDLE hThisObject
     );

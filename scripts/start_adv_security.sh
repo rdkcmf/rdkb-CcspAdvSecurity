@@ -104,12 +104,37 @@ then
             disable_otm
     fi
 
+    if [ "$ADVSEC_RAPTR_RFC_ENABLED" = "1" ]; then
+            enable_raptr
+    else
+            disable_raptr
+    fi
+
     rm $ADVSEC_INITIALIZING
 
-    echo_t "${CUJO_AGENT_LOG} triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
-    sysevent set firewall-restart
+    do_firewall_restart
 
-    if [ "$ADV_PC_ENABLED" = "1" ] && [ ! -e ${ADV_PARENTAL_CONTROL_RFC_DISABLED_PATH} ]; then
+    if [ -f $ADVSEC_RAPTR_ENABLED_PATH ]; then
+        retries=180;
+        retries_before_restart=60;
+        while [ ${retries} -gt 0 ]; do
+            if raptr -q check; then
+                echo_t "Rules are loaded correctly" >> ${ADVSEC_AGENT_LOG_PATH}
+                break
+            fi
+            echo_t "Waiting for Cujo iptables rules..." >> ${ADVSEC_AGENT_LOG_PATH}
+            sleep 1
+            retries=$((retries--))
+            if [ "$(( retries % retries_before_restart ))" -eq 0 ]; then
+                do_firewall_restart
+            fi
+        done
+
+        if [ ${retries} -eq 0 ]; then
+            echo_t "Failed to load rules correctly" >> ${ADVSEC_AGENT_LOG_PATH}
+        fi
+    else
+        if [ "$ADV_PC_ENABLED" = "1" ] && [ ! -e ${ADV_PARENTAL_CONTROL_RFC_DISABLED_PATH} ]; then
             #This is a workaround for an issue in firewall utility, where cujo related rules are not added.
             #To be removed once firewall utility issue is fixed!
             sleep 20s
@@ -118,11 +143,11 @@ then
             ip4=`iptables-save | grep CUJO | wc -l`
             ip6=`ip6tables-save | grep CUJO | wc -l`
             if [ ${ipt4} != ${ip4} ] || [ ${ipt6} != ${ip6} ]; then
-		 echo_t "${CUJO_AGENT_LOG} triggering firewall restart to reload rules" >> ${ADVSEC_AGENT_LOG_PATH}
-           	 sysevent set firewall-restart
+                do_firewall_restart
             else
-		 echo_t "Rules are loaded correctly" >> ${ADVSEC_AGENT_LOG_PATH}
+                echo_t "Rules are loaded correctly" >> ${ADVSEC_AGENT_LOG_PATH}
             fi
+        fi
     fi
 
     AGENT_USER=`advsec_get_agent_group_name`
@@ -171,6 +196,10 @@ then
         rm $ADVSEC_WS_DISCOVERY_ENABLED_PATH
     fi
 
+    if [ -f $ADVSEC_RAPTR_ENABLED_PATH ]; then
+        rm $ADVSEC_RAPTR_ENABLED_PATH
+    fi
+
     exit 0
 fi
 }
@@ -198,21 +227,36 @@ stop_agent_services()
     advsec_agent_stop_sb
     advsec_agent_stop_fp
     advsec_stop_agent
-    RETRY_CNT=5
-    while [ ${RETRY_CNT} -gt 0 ]; do
-        RETRY_CNT=$(expr $RETRY_CNT - 1)
-        echo_t "${CUJO_AGENT_LOG} triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
-        sysevent set firewall-restart
-        sleep 10s
-        ip4=`iptables-save | grep CUJO | wc -l`
-        ip6=`ip6tables-save | grep CUJO | wc -l`
-        if [ $ip4 = "0" ] && [ $ip6 = "0" ]; then
-            break
-        else
-            echo_t "${CUJO_AGENT_LOG} rules are not removed yet! ip4 = $ip4 And ip6 = $ip6 ..Retry again" >> ${ADVSEC_AGENT_LOG_PATH}
-            sleep 60s
-        fi
-    done
+    if [ -f $ADVSEC_RAPTR_ENABLED_PATH ]; then
+        retries=5;
+        echo "Clearing Cujo iptables rules..." >> ${ADVSEC_AGENT_LOG_PATH}
+        raptr clear
+        while [ ${retries} -gt 0 ]; do
+            if raptr -q check -N; then
+                echo_t "Cujo iptables rules successfully cleared..." >> ${ADVSEC_AGENT_LOG_PATH}
+                break
+            fi
+            sleep 1
+            retries=$((retries--))
+            raptr clear
+        done
+    else
+        RETRY_CNT=5
+        while [ ${RETRY_CNT} -gt 0 ]; do
+            RETRY_CNT=$(expr $RETRY_CNT - 1)
+            echo_t "${CUJO_AGENT_LOG} triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
+            sysevent set firewall-restart
+            sleep 10s
+            ip4=`iptables-save | grep CUJO | wc -l`
+            ip6=`ip6tables-save | grep CUJO | wc -l`
+            if [ $ip4 = "0" ] && [ $ip6 = "0" ]; then
+                break
+            else
+                echo_t "${CUJO_AGENT_LOG} rules are not removed yet! ip4 = $ip4 And ip6 = $ip6 ..Retry again" >> ${ADVSEC_AGENT_LOG_PATH}
+                sleep 60s
+            fi
+        done
+    fi
     advsec_module_unload
     advsec_agent_flush_ipsets
     advsec_cleanup_config_agent
@@ -308,8 +352,7 @@ enable_icmpv6()
     echo_t ${DF_ICMPv6_RFC_ENABLED_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
 
     if [ "$1" = "FR" ]; then
-        echo_t "${CUJO_AGENT_LOG} triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
-        sysevent set firewall-restart
+        do_firewall_restart
     fi
 }
 
@@ -319,8 +362,7 @@ disable_icmpv6()
     echo_t ${DF_ICMPv6_RFC_DISABLED_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
 
     if [ "$1" = "FR" ]; then
-        echo_t "${CUJO_AGENT_LOG} triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
-        sysevent set firewall-restart
+        do_firewall_restart
     fi
 }
 
@@ -330,8 +372,7 @@ enable_wsdiscovery()
     echo_t ${ADV_WS_DISCOVERY_RFC_ENABLE_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
 
     if [ "$1" = "FR" ]; then
-        echo_t "${CUJO_AGENT_LOG} triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
-        sysevent set firewall-restart
+        do_firewall_restart
     fi
 }
 
@@ -341,8 +382,7 @@ disable_wsdiscovery()
     echo_t ${ADV_WS_DISCOVERY_RFC_DISABLE_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
 
     if [ "$1" = "FR" ]; then
-        echo_t "${CUJO_AGENT_LOG} triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
-        sysevent set firewall-restart
+        do_firewall_restart
     fi
 }
 
@@ -360,6 +400,43 @@ disable_otm()
    if [ "$1" = "RR" ]; then
        advsec_restart_agent "OTM_RFC_Disabled"
    fi
+}
+
+enable_raptr()
+{
+    touch $ADVSEC_RAPTR_ENABLED_PATH
+    echo_t ${ADV_RAPTR_RFC_ENABLE_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
+
+    if [ "$1" = "FR" ]; then
+        do_firewall_restart
+    fi
+}
+
+disable_raptr()
+{
+    rm -f $ADVSEC_RAPTR_ENABLED_PATH
+    echo_t ${ADV_RAPTR_RFC_DISABLE_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
+
+    if [ "$1" = "FR" ]; then
+        do_firewall_restart
+    fi
+}
+
+do_firewall_restart()
+{
+    if [ -f $ADVSEC_RAPTR_ENABLED_PATH ]; then
+        raptr -n -4 set | grep -v \'ipset\' > $CUJO_AGENT_RULES_V4_PATH
+        raptr -n -6 set | grep -v \'ipset\' > $CUJO_AGENT_RULES_V6_PATH
+    else
+        if [ -f $CUJO_AGENT_RULES_V4_PATH ]; then
+            rm $CUJO_AGENT_RULES_V4_PATH
+        fi
+        if [ -f $CUJO_AGENT_RULES_V6_PATH ]; then
+            rm $CUJO_AGENT_RULES_V6_PATH
+        fi
+    fi
+    echo_t "${CUJO_AGENT_LOG} triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
+    sysevent set firewall-restart
 }
 
 if [ "$1" = "-enable" ] || [ "$1" = "-disable" ]
@@ -481,6 +558,14 @@ fi
 
 if [ "$1" = "-disableWSDiscovery" ]; then
    disable_wsdiscovery "FR"
+fi
+
+if [ "$1" = "-enableRaptr" ]; then
+   enable_raptr "FR"
+fi
+
+if [ "$1" = "-disableRaptr" ]; then
+   disable_raptr "FR"
 fi
 
 if [ "$1" = "-restartAgent" ] && [ -e ${ADVSEC_DF_ENABLED_PATH} ]

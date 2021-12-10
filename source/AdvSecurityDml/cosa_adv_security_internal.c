@@ -118,6 +118,7 @@ static char *g_AdvParentalControlEnabled = "Adv_PCRFCEnable";
 static char *g_DeviceFingerPrintICMPv6Enabled = "Adv_DFICMPv6RFCEnable";
 static char *g_WSDiscoveryAnalysisEnabled = "Adv_WSDisAnaRFCEnable";
 static char *g_AdvSecOTMEnabled = "Adv_AdvSecOTMRFCEnable";
+static char *g_RaptrEnabled = "Adv_RaptrRFCEnable";
 
 static pthread_mutex_t logMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t logCond = PTHREAD_COND_INITIALIZER;
@@ -499,6 +500,15 @@ CosaSecurityCreate
         return  (ANSC_HANDLE)NULL;
     }
 
+    pMyObject->pRaptr_RFC = (PCOSA_DATAMODEL_RAPTR_RFC)AnscAllocateMemory(sizeof(COSA_DATAMODEL_RAPTR_RFC));
+
+    if ( !pMyObject->pRaptr_RFC )
+    {
+        CcspTraceInfo(("%s exit ERROR \n", __FUNCTION__));
+        AnscFreeMemory((ANSC_HANDLE)pMyObject);
+        return  (ANSC_HANDLE)NULL;
+    }
+
     if (syscfg_init() != 0) {
         CcspTraceError(("%s: syscfg_init error", __FUNCTION__));
     	AnscFreeMemory((ANSC_HANDLE)pMyObject);
@@ -527,6 +537,7 @@ CosaSecurityInitialize
     ULONG                   ValueDFIcmpv6_RFC = 0;
     ULONG                   ValueWSA_RFC = 0;
     ULONG                   ValueASOTM_RFC = 0;
+    ULONG                   ValueRAPTR_RFC = 0;
     ULONG                   ValueRML = 0;
     ULONG                   ValueRMCS = 0;
     ULONG                   ValueRDCS = 0;
@@ -719,6 +730,7 @@ CosaSecurityInitialize
     CosaGetSysCfgUlong(g_DeviceFingerPrintICMPv6Enabled, &ValueDFIcmpv6_RFC);
     CosaGetSysCfgUlong(g_WSDiscoveryAnalysisEnabled, &ValueWSA_RFC);
     CosaGetSysCfgUlong(g_AdvSecOTMEnabled, &ValueASOTM_RFC);
+    CosaGetSysCfgUlong(g_RaptrEnabled, &ValueRAPTR_RFC);
     CosaGetSysCfgUlong(g_RabidMemoryLimit, &ValueRML);
     CosaGetSysCfgUlong(g_RabidMacCacheSize, &ValueRMCS);
     CosaGetSysCfgUlong(g_RabidDNSCacheSize, &ValueRDCS);
@@ -733,6 +745,7 @@ CosaSecurityInitialize
     g_pAdvSecAgent->pDFIcmpv6_RFC->bEnable = ValueDFIcmpv6_RFC;
     g_pAdvSecAgent->pWSDiscoveryAnalysis_RFC->bEnable = ValueWSA_RFC;
     g_pAdvSecAgent->pAdvSecOTM_RFC->bEnable = ValueASOTM_RFC;
+    g_pAdvSecAgent->pRaptr_RFC->bEnable = ValueRAPTR_RFC;
     g_pAdvSecAgent->pRabid->uMemoryLimit = ValueRML;
     g_pAdvSecAgent->pRabid->uMacCacheSize = ValueRMCS;
     g_pAdvSecAgent->pRabid->uDNSCacheSize = ValueRDCS;
@@ -2080,5 +2093,56 @@ ANSC_STATUS CosaAdvSecOTMDeInit(ANSC_HANDLE hThisObject)
     }
 
     CcspTraceWarning (("AdvSecOTM_RFCEnable:FALSE\n"));
+    return returnStatus;
+}
+
+ANSC_STATUS CosaAdvSecAgentRaptrInit(ANSC_HANDLE hThisObject)
+{
+    UNREFERENCED_PARAMETER(hThisObject);
+    ANSC_STATUS  returnStatus = ANSC_STATUS_SUCCESS;
+    errno_t rc = -1;
+
+    returnStatus = CosaSetSysCfgUlong(g_RaptrEnabled, 1);
+    if (ANSC_STATUS_SUCCESS != returnStatus)
+    {
+        CcspTraceWarning (("%s: syscfg_set failure.", __FUNCTION__));
+        return returnStatus;
+    }
+
+    g_pAdvSecAgent->pRaptr_RFC->bEnable = TRUE;
+
+    rc = v_secure_system(TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -enableRaptr &");
+    if (!WIFEXITED(rc) || WEXITSTATUS(rc) != 0)
+    {
+       CcspTraceError(("%s: disable failed rc = %d\n", __FUNCTION__, WEXITSTATUS(rc)));
+    }
+
+    CcspTraceWarning (("AdvSecAgentRaptr_RFCEnable:TRUE\n"));
+    return returnStatus;
+}
+
+
+ANSC_STATUS CosaAdvSecAgentRaptrDeInit(ANSC_HANDLE hThisObject)
+{
+    UNREFERENCED_PARAMETER(hThisObject);
+    ANSC_STATUS  returnStatus = ANSC_STATUS_SUCCESS;
+    errno_t rc = -1;
+
+    returnStatus = CosaSetSysCfgUlong(g_RaptrEnabled, 0);
+    if (ANSC_STATUS_SUCCESS != returnStatus)
+    {
+        CcspTraceWarning (("%s: syscfg_set failure.", __FUNCTION__));
+        return returnStatus;
+    }
+
+    g_pAdvSecAgent->pRaptr_RFC->bEnable = FALSE;
+
+    rc = v_secure_system(TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -disableRaptr &");
+    if (!WIFEXITED(rc) || WEXITSTATUS(rc) != 0)
+    {
+       CcspTraceError(("%s: disable failed rc = %d\n", __FUNCTION__, WEXITSTATUS(rc)));
+    }
+
+    CcspTraceWarning (("AdvSecAgentRaptr_RFCEnable:FALSE\n"));
     return returnStatus;
 }

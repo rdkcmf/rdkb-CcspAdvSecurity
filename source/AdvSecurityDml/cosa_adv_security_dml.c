@@ -2848,3 +2848,126 @@ AdvancedSecurityOTM_RFC_SetParamBoolValue
     CcspTraceWarning(("Unsupported parameter '%s'\n", ParamName));
     return FALSE;
 }
+/***********************************************************************
+
+ APIs for Object:
+
+    X_RDKCENTRAL-COM_RFC.Feature.AdvSecAgentRaptr.
+
+    *  AdvSecAgentRaptr_RFC_GetParamBoolValue
+    *  AdvSecAgentRaptr_RFC_SetParamBoolValue
+
+***********************************************************************/
+/**********************************************************************
+
+    caller:     owner of this object
+
+    prototype:
+
+        BOOL
+        AdvSecAgentRaptr_RFC_GetParamBoolValue
+            (
+                ANSC_HANDLE                 hInsContext,
+                char*                       ParamName,
+                BOOL*                       pBool
+            );
+
+    description:
+
+        This function is called to retrieve Boolean parameter value;
+
+    argument:   ANSC_HANDLE                 hInsContext,
+                The instance handle;
+
+                char*                       ParamName,
+                The parameter name;
+
+                BOOL*                       pBool
+                The buffer of returned boolean value;
+
+    return:     TRUE if succeeded.
+
+**********************************************************************/
+BOOL
+AdvSecAgentRaptr_RFC_GetParamBoolValue
+    (
+        ANSC_HANDLE                 hInsContext,
+        char*                       ParamName,
+        BOOL*                       pBool
+    )
+{
+    UNREFERENCED_PARAMETER(hInsContext);
+    /* check the parameter name and return the corresponding value */
+
+    if( AnscEqualString(ParamName, "Enable", TRUE))
+    {
+        *pBool = g_pAdvSecAgent->pRaptr_RFC->bEnable;
+        return TRUE;
+    }
+    CcspTraceWarning(("Unsupported parameter '%s'\n", ParamName));
+    return FALSE;
+}
+
+/**********************************************************************
+
+    caller:     owner of this object
+
+    prototype:
+
+        BOOL
+        AdvSecAgentRaptr_RFC_SetParamBoolValue
+            (
+                ANSC_HANDLE                 hInsContext,
+                char*                       ParamName,
+                BOOL                        bValue
+            );
+
+    description:
+
+        This function is called to set BOOL parameter value;
+
+    argument:   ANSC_HANDLE                 hInsContext,
+                The instance handle;
+
+                char*                       ParamName,
+                The parameter name;
+
+                BOOL                        bValue
+                The updated BOOL value;
+
+    return:     TRUE if succeeded.
+
+**********************************************************************/
+BOOL
+AdvSecAgentRaptr_RFC_SetParamBoolValue
+    (
+        ANSC_HANDLE                 hInsContext,
+        char*                       ParamName,
+        BOOL                        bValue
+    )
+{
+    UNREFERENCED_PARAMETER(hInsContext);
+    /* check the parameter name and return the corresponding value */
+
+    ANSC_STATUS  returnStatus = ANSC_STATUS_SUCCESS;
+
+    if( AnscEqualString(ParamName, "Enable", TRUE))
+    {
+        if(bValue == g_pAdvSecAgent->pRaptr_RFC->bEnable)
+                return TRUE;
+        if( bValue )
+                returnStatus = CosaAdvSecAgentRaptrInit(g_pAdvSecAgent->pRaptr_RFC);
+        else
+                returnStatus = CosaAdvSecAgentRaptrDeInit(g_pAdvSecAgent->pRaptr_RFC);
+
+        if ( returnStatus != ANSC_STATUS_SUCCESS )
+        {
+            CcspTraceInfo(("%s EXIT Error\n", __FUNCTION__));
+            return  returnStatus;
+        }
+        return TRUE;
+    }
+
+    CcspTraceWarning(("Unsupported parameter '%s'\n", ParamName));
+    return FALSE;
+}

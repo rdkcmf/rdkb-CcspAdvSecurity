@@ -468,4 +468,29 @@ AdvancedSecurityOTM_RFC_SetParamBoolValue
         char*                       ParamName,
         BOOL                        bValue
     );
+/***********************************************************************
+
+ APIs for Object:
+
+    X_RDKCENTRAL-COM_RFC.Feature.Raptr.
+
+    *  Raptr_RFC_GetParamBoolValue
+    *  Raptr_RFC_SetParamBoolValue
+
+***********************************************************************/
+BOOL
+AdvSecAgentRaptr_RFC_GetParamBoolValue
+    (
+        ANSC_HANDLE                 hInsContext,
+        char*                       ParamName,
+        BOOL*                       pBool
+    );
+
+BOOL
+AdvSecAgentRaptr_RFC_SetParamBoolValue
+    (
+        ANSC_HANDLE                 hInsContext,
+        char*                       ParamName,
+        BOOL                        bValue
+    );
 #endif //_COSA_ADV_SECURITY_DML_H
