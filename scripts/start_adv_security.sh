@@ -459,21 +459,6 @@ then
 
 fi
 
-if [ "$1" = "-restart" ] && [ -e ${ADVSEC_DF_ENABLED_PATH} ]
-then
-    AGENT_USER=`advsec_get_agent_group_name`
-    if [ "${AGENT_USER}" = "root" ] && [ "${NON_ROOT_SUPPORT}" = "true" ]
-    then
-        advsec_restart_agent "NonRootSupportToggle"
-        echo_t ${AGENT_RUNNING_AS_NON_ROOT_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
-    fi
-    if [ "${AGENT_USER}" = "${CUJO_AGENT_USER_NAME}" ] && [ "${NON_ROOT_SUPPORT}" = "false" ]
-    then
-        advsec_restart_agent "NonRootSupportToggle"
-        echo_t ${AGENT_RUNNING_AS_ROOT_LOG} >> ${ADVSEC_AGENT_LOG_PATH}
-    fi
-fi
-
 if [ "$1" = "-enableICMP6" ]; then
    enable_icmpv6 "FR"
 fi

@@ -82,7 +82,6 @@ export ADVSEC_SB_ENABLED=`syscfg get Advsecurity_SafeBrowsing`
 export ADVSEC_SF_ENABLED=`syscfg get Advsecurity_Softflowd`
 export ADV_PC_ENABLED=`syscfg get Adv_PCActivate`
 export PRIVACY_PROTECTION_ENABLED=`syscfg get Adv_PPActivate`
-export NON_ROOT_SUPPORT=`syscfg get NonRootSupport`
 export ADV_PC_RFC_ENABLED=`syscfg get Adv_PCRFCEnable`
 export PRIVACY_PROTECTION_RFC_ENABLED=`syscfg get Adv_PrivProtRFCEnable`
 if [ "$BOX_TYPE" != "XB3" ] && [ "$BOX_TYPE" != "XF3" ]; then

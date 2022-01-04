@@ -15,6 +15,8 @@
  * limitations under the License.
  * SPDX-License-Identifier: Apache-2.0
 */
+#define _GNU_SOURCE
+#include <string.h>
 
 #ifdef __GNUC__
 #if (!defined _NO_EXECINFO_H_)
@@ -33,7 +35,9 @@
 #define MAX_SUBSYSTEM_SIZE 32
 
 #define ADVSEC_CCSP_INIT_FILE_BOOTUP "/tmp/advsec_ccsp_initialized_bootup"
-
+#define ADVSEC_CUJO_AGENT_ROOT_PRIV "/tmp/advsec_cujo_agent_root_priv"
+#define BLOCKLIST_FILE "/opt/secure/Blocklist_file.txt"
+#define ADVSEC_AGENT_PROC_NAME "cujo-agent"
 #define NUM_SUBSYSTEM_TYPES (sizeof(gSubsystem_type_table)/sizeof(gSubsystem_type_table[0]))
 
 PDSLH_CPE_CONTROLLER_OBJECT     pDslhCpeController      = NULL;
@@ -301,6 +305,68 @@ void sig_handler(int sig)
 
 #endif
 
+BOOL isCujoBlocklisted()
+{
+    BOOL ret = false;
+    FILE *fp = NULL;
+    int len = 0;
+    char *process_name = ADVSEC_AGENT_PROC_NAME;
+    char *buf = NULL;
+    fp = fopen(BLOCKLIST_FILE, "r");
+    if(fp == NULL)
+    {
+        return ret;
+    }
+    fseek(fp, 0, SEEK_END);
+    len = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+    buf = (char*)malloc(sizeof(char) * (len + 1));
+    if (buf != NULL)
+    {
+        memset(buf, 0, (sizeof(char) * (len + 1)));
+        fread(buf, 1, len, fp);
+    }
+    else
+    {
+        CcspTraceError(("Memory allocation failed for buffer %s:%d\n", __FUNCTION__, __LINE__));
+    }
+    fclose(fp);
+    if((buf != NULL) && (strlen(buf) != 0))
+    {
+        if(strcasestr(buf,process_name) != NULL)
+        {
+            CcspTraceInfo(("process[%s] is found in blocklist, thus process runs in Root mode\n", process_name));
+            ret = true;
+        }
+        free(buf);
+        buf = NULL;
+    }
+    return ret;
+}
+
+void drop_root(void)
+{
+    FILE *fp = NULL;
+    BOOL blocklist_ret = false;
+    blocklist_ret = isCujoBlocklisted();
+    if(blocklist_ret)
+    {
+        CcspTraceInfo(("NonRoot feature is disabled\n"));
+        if ((fp = fopen(ADVSEC_CUJO_AGENT_ROOT_PRIV, "w")))
+        {
+            fclose(fp);
+        }
+        else
+        {
+            CcspTraceError(("File creation failed %s:%d\n", __FUNCTION__, __LINE__));
+        }
+    }
+    else
+    {
+        CcspTraceInfo(("NonRoot feature is enabled, dropping root privileges for cujo-agent process\n"));
+    }
+}
+
 int main(int argc, char* argv[])
 {
     ANSC_STATUS                     returnStatus       = ANSC_STATUS_SUCCESS;
@@ -408,6 +474,7 @@ int main(int argc, char* argv[])
         }
     }
 #elif defined(_ANSC_LINUX)
+    drop_root();
     if ( bRunAsDaemon )
         daemonize();
 
