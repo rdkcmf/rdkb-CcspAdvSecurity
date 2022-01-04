@@ -198,7 +198,6 @@ stop_agent_services()
     advsec_agent_stop_sb
     advsec_agent_stop_fp
     advsec_stop_agent
-    advsec_agent_flush_ipsets
     RETRY_CNT=5
     while [ ${RETRY_CNT} -gt 0 ]; do
         RETRY_CNT=$(expr $RETRY_CNT - 1)
@@ -215,6 +214,7 @@ stop_agent_services()
         fi
     done
     advsec_module_unload
+    advsec_agent_flush_ipsets
     advsec_cleanup_config_agent
 }
 
