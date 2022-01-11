@@ -70,7 +70,7 @@ export ADVSEC_CLOUD_IP=/tmp/advsec_cloud_ipv4
 export ADVSEC_CLOUD_HOST=/tmp/advsec_cloud_host
 export ADVSEC_ASSOC_SUCCESS=/tmp/advsec_assoc_success
 export ADVSEC_IPSETLIST_CREATED=/tmp/advsec_ipsetlist_created
-export ADVSEC_DEVICE_CERT=/tmp/device.pem
+export ADVSEC_DEVICE_CERT=/tmp/cujo_xpki_cert.pem
 export ADV_PARENTAL_CONTROL_ACTIVEMACSFILE=/tmp/activemacs.json
 if [ "$BOX_TYPE" != "XB3" ] && [ "$BOX_TYPE" != "XF3" ]; then
 export ADVSEC_DF_ICMPv6_ENABLED_PATH=/tmp/advsec_df_icmpv6_enabled
