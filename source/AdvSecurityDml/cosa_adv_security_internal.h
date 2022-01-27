@@ -31,6 +31,7 @@
 #define ADVSEC_LogLevel_WARN 2
 #define ADVSEC_LogLevel_INFO 3
 #define ADVSEC_LogLevel_VERBOSE 4
+#define BUFLEN_1024 1024
 
 typedef enum {
     ADVSEC_SAFEBROWSING=0,

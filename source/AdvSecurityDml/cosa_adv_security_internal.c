@@ -251,14 +251,22 @@ ANSC_STATUS CosaAdvSecFetchSbConfig(char* paramName, char* pValue, ULONG* pUlSiz
     cJSON *json = NULL;
     char* data = NULL;
     char json_key[15] = {0};
+    errno_t rc = -1;
 
-    data = (char *) malloc(1024*sizeof(char));
+    rc = v_secure_system("/usr/ccsp/advsec/start_adv_security.sh -getSafebroConfig");
+    if (!WIFEXITED(rc) || WEXITSTATUS(rc) != 0)
+    {
+        CcspTraceError(("%s: fetch safebro config failed rc = %d\n", __FUNCTION__, WEXITSTATUS(rc)));
+        return ANSC_STATUS_FAILURE;
+    }
+
+    data = (char *) malloc(BUFLEN_1024*sizeof(char));
     if(NULL == data)
     {
         CcspTraceError(("%s : malloc failed\n", __FUNCTION__));
         return ANSC_STATUS_FAILURE;
     }
-    memset(data, 0, 1024);
+    memset(data, 0, BUFLEN_1024);
 
     if( !advsec_read_from_file(SAFEBRO_CONFIG_FILE_PATH,data) )
     {

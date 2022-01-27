@@ -28,6 +28,7 @@ CUJO_AGENT="cujo-agent"
 CUJO_AGENT_SH="cujo-agent --ctl"
 CUJO_AGENT_LOG="CujoAgent"
 CUJO_AGENT_USER_NAME="_rabid"
+CUJO_AGENT_STATUS="cujo-agent-status"
 
 if [ "$BOX_TYPE" = "XB3" ] || [ "$BOX_TYPE" = "XF3" ]; then
     CUJO_AGENT="rabid"
@@ -582,6 +583,12 @@ advsec_agent_loglevel()
          ${set_agentloglevel}
          echo_t "${CUJO_AGENT} LogLevel changed from LogLevel-$get_agentloglevel to LogLevel-$1" >> ${ADVSEC_AGENT_LOG_PATH}
       fi
+}
+
+advsec_agent_get_safebro_config()
+{
+    safebro_json=`${RUNTIME_DIR}/bin/${CUJO_AGENT_STATUS} safebro-config`
+    echo $safebro_json > ${ADVSEC_SAFEBRO_SETTING}
 }
 
 wait_for_lanip()

@@ -491,3 +491,7 @@ fi
 if [ "$1" = "-agentloglevel" ]; then
    advsec_agent_loglevel $2
 fi
+
+if [ "$1" = "-getSafebroConfig" ]; then
+   advsec_agent_get_safebro_config
+fi
