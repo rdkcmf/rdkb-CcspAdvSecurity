@@ -41,6 +41,7 @@
 #include <syscfg/syscfg.h>
 #include "safec_lib_common.h"
 #include "secure_wrapper.h"
+#include <rbus.h>
 #if defined(_COSA_BCM_MIPS_)
 #include <ccsp/dpoe_hal.h>
 #else
@@ -54,6 +55,7 @@
 #define ADVSEC_SYSEVENT_BRIDGE_MODE_EVENT "bridge_mode"
 #define ADVSEC_SYSEVENT_CLOUD_HOST_IP "advsec_host_ip"
 #define ADVSEC_SYSEVENT_MAP_T_CONFIG_CHANGED_EVENT "mapt_config_flag"
+#define ADVSEC_SYSEVENT_CURRENT_WAN_IFNAME_EVENT "current_wan_ifname"
 
 #define ADVSEC_WAIT_FOR_TIMEOUT (60 * 60)
 #define MAX_VALUE 32
@@ -127,6 +129,7 @@ enum advSysEvent_e{
     SYSEVENT_BRIDGE_MODE_EVENT,
     SYSEVENT_CLOUD_HOST_IP,
     SYSEVENT_MAP_T_CONFIG_CHANGED_EVENT,
+    SYSEVENT_CURRENT_WAN_IFNAME_EVENT,
 };
 
 /*Structure defined to get the AdvSysEvent Noti type from the given Event names */
@@ -140,6 +143,7 @@ ADV_SYSEVENT_PAIR advSysEvent_type_table[] = {
   { ADVSEC_SYSEVENT_BRIDGE_MODE_EVENT,              SYSEVENT_BRIDGE_MODE_EVENT            },
   { ADVSEC_SYSEVENT_CLOUD_HOST_IP,                  SYSEVENT_CLOUD_HOST_IP                },
   { ADVSEC_SYSEVENT_MAP_T_CONFIG_CHANGED_EVENT,     SYSEVENT_MAP_T_CONFIG_CHANGED_EVENT   },
+  { ADVSEC_SYSEVENT_CURRENT_WAN_IFNAME_EVENT,       SYSEVENT_CURRENT_WAN_IFNAME_EVENT   },
 };
 
 int get_advSysEvent_type_from_name(char *name, enum advSysEvent_e *type_ptr)
@@ -242,6 +246,33 @@ static BOOL advsec_read_from_file(char *fpath, char *str)
     }
     return 0;
 }
+
+#ifdef WAN_FAILOVER_SUPPORTED
+static void eventReceiveHandler(
+    rbusHandle_t handle,
+    rbusEvent_t const* event,
+    rbusEventSubscription_t* subscription)
+{
+    (void)handle;
+    (void)subscription;
+
+    const char* eventName = event->name;
+    rbusValue_t valBuff;
+    valBuff = rbusObject_GetValue(event->data, NULL );
+    if(!valBuff)
+    {
+        CcspTraceWarning(("AdvSecurityEventConsumer : FAILED , value is NULL\n"));
+    }
+    else
+    {
+        const char* newValue = rbusValue_GetString(valBuff, NULL);
+        if ( strcmp(eventName,"Device.X_RDK_WanManager.CurrentActiveInterface") == 0 )
+        {
+            CcspTraceWarning(("AdvSecurityEventConsumer : New value of CurrentActiveInterface is = %s\n",newValue));
+        }
+    }
+}
+#endif
 
 ANSC_STATUS CosaAdvSecFetchSbConfig(char* paramName, char* pValue, ULONG* pUlSize, ULONG* puLong)
 {
@@ -724,6 +755,26 @@ CosaSecurityInitialize
     CosaAdvSecGetLookupTimeout();
     advsec_start_logger_thread();
     advsec_handle_sysevent_async();
+
+#ifdef WAN_FAILOVER_SUPPORTED
+    int ret = RBUS_ERROR_SUCCESS;
+    rbusHandle_t handle;
+
+    ret = rbus_open(&handle, "AdvSecurityEventConsumer");
+    if(ret != RBUS_ERROR_SUCCESS)
+    {
+        CcspTraceError(("AdvSecurityEventConsumer: rbus_open failed: %d\n", ret));
+        return ANSC_STATUS_FAILURE;
+    }
+
+    ret = rbusEvent_Subscribe(handle, "Device.X_RDK_WanManager.CurrentActiveInterface", eventReceiveHandler, NULL, 0);
+    if(ret != RBUS_ERROR_SUCCESS)
+    {
+        CcspTraceError(("AdvSecurityEventConsumer: rbusEvent_Subscribe failed: %d\n", ret));
+        return ANSC_STATUS_FAILURE;
+    }
+#endif
+
     return returnStatus;
 }
 
@@ -1444,7 +1495,7 @@ ULONG CosaAdvSecGetLookupTimeoutExceededCount()
 static BOOL AdvsecSysEventHandlerStarted=FALSE;
 static int sysevent_fd = 0;
 static token_t sysEtoken;
-static async_id_t async_id[3];
+static async_id_t async_id[4];
 
 enum {SYS_EVENT_ERROR=-1, SYS_EVENT_OK, SYS_EVENT_TIMEOUT, SYS_EVENT_HANDLE_EXIT, SYS_EVENT_RECEIVED=0x10};
 
@@ -1480,6 +1531,13 @@ int advsec_sysevent_init(void)
     //register MAP-T config change event
     sysevent_set_options(sysevent_fd, sysEtoken, ADVSEC_SYSEVENT_MAP_T_CONFIG_CHANGED_EVENT, TUPLE_FLAG_EVENT);
     rc = sysevent_setnotification(sysevent_fd, sysEtoken, ADVSEC_SYSEVENT_MAP_T_CONFIG_CHANGED_EVENT, &async_id[2]);
+    if (rc) {
+       return(SYS_EVENT_ERROR);
+    }
+
+    //register Current Wan ifname change event
+    sysevent_set_options(sysevent_fd, sysEtoken, ADVSEC_SYSEVENT_CURRENT_WAN_IFNAME_EVENT, TUPLE_FLAG_EVENT);
+    rc = sysevent_setnotification(sysevent_fd, sysEtoken, ADVSEC_SYSEVENT_CURRENT_WAN_IFNAME_EVENT, &async_id[3]);
     if (rc) {
        return(SYS_EVENT_ERROR);
     }
@@ -1567,7 +1625,16 @@ void advsec_handle_sysevent_notification(char *event, char *val)
         }
         else if(type == SYSEVENT_MAP_T_CONFIG_CHANGED_EVENT)
         {
-            ret = v_secure_system(TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -restartRabid MAPTConfigChanged &");
+            ret = v_secure_system(TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -restartAgent MAPTConfigChanged &");
+            if(ret !=0)
+            {
+                  CcspTraceWarning(("Failure in executing command via v_secure_system. ret val: %d \n", ret));
+            }
+
+        }
+	else if(type == SYSEVENT_CURRENT_WAN_IFNAME_EVENT)
+        {
+            ret = v_secure_system(TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -restartAgent WANIfnameChanged &");
             if(ret !=0)
             {
                   CcspTraceWarning(("Failure in executing command via v_secure_system. ret val: %d \n", ret));
@@ -1615,6 +1682,7 @@ int advsec_sysvent_close(void)
     sysevent_rmnotification(sysevent_fd, sysEtoken, async_id[0]);
     sysevent_rmnotification(sysevent_fd, sysEtoken, async_id[1]);
     sysevent_rmnotification(sysevent_fd, sysEtoken, async_id[2]);
+    sysevent_rmnotification(sysevent_fd, sysEtoken, async_id[3]);
 
     /* close this session with syseventd */
     sysevent_close(sysevent_fd, sysEtoken);
