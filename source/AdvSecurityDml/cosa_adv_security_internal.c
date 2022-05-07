@@ -59,6 +59,7 @@
 
 #define ADVSEC_WAIT_FOR_TIMEOUT (60 * 60)
 #define MAX_VALUE 32
+#define MAX_INTERFACE_SIZE 16
 #define COMMAND_MAX 256
 #define BUFFERSIZE_MAX  256
 #define ADVSEC_LOOKUP_EXCEED_COUNT_FILE "/tmp/advsec_lkup_exceed_cnt"
@@ -80,6 +81,7 @@
 #define ADVSEC_CLOUD_IP "/tmp/advsec_cloud_ipv4"
 #define ADVSEC_DEFAULT_CM_MAC "00:1A:2B:11:22:33"
 #define SAFEBRO_CONFIG_FILE_PATH "/tmp/safebro.json"
+#define ADVSEC_PRIMARY_WAN_IF_NAME "erouter0"
 
 #ifdef CONFIG_CISCO
 #define CONFIG_VENDOR_NAME  "Cisco"
@@ -123,6 +125,7 @@ static char *g_RaptrEnabled = "Adv_RaptrRFCEnable";
 
 static pthread_mutex_t logMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t logCond = PTHREAD_COND_INITIALIZER;
+static char prevWanIfname[MAX_INTERFACE_SIZE] = {0};
 
 void advsec_handle_sysevent_async(void);
 static void advsec_start_logger_thread(void);
@@ -861,6 +864,8 @@ CosaSecurityInitialize
     CosaAdvSecGetLoggingPeriod();
     CosaAdvSecGetLogLevel();
     CosaAdvSecGetLookupTimeout();
+    rc = strcpy_s(prevWanIfname, sizeof(prevWanIfname), ADVSEC_PRIMARY_WAN_IF_NAME);
+    ERR_CHK(rc);
     advsec_start_logger_thread();
     advsec_handle_sysevent_async();
 
@@ -1621,6 +1626,9 @@ void advsec_handle_sysevent_notification(char *event, char *val)
 {
     enum advSysEvent_e type;
     int ret = 0;
+    errno_t rc = -1;
+    int ind    = -1;
+
     if(!event || !val)
         return;
 
@@ -1695,20 +1703,29 @@ void advsec_handle_sysevent_notification(char *event, char *val)
         else if(type == SYSEVENT_MAP_T_CONFIG_CHANGED_EVENT)
         {
             ret = v_secure_system(TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -restartAgent MAPTConfigChanged &");
-            if(ret !=0)
+            if(ret != 0)
             {
                   CcspTraceWarning(("Failure in executing command via v_secure_system. ret val: %d \n", ret));
             }
 
         }
-	else if(type == SYSEVENT_CURRENT_WAN_IFNAME_EVENT)
+        else if(type == SYSEVENT_CURRENT_WAN_IFNAME_EVENT)
         {
-            ret = v_secure_system(TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -restartAgent WANIfnameChanged &");
-            if(ret !=0)
+            if(*val)
             {
-                  CcspTraceWarning(("Failure in executing command via v_secure_system. ret val: %d \n", ret));
+                rc = strcmp_s(val, sizeof(MAX_INTERFACE_SIZE), prevWanIfname, &ind);
+                ERR_CHK(rc);
+                if((rc == EOK) && (ind))
+                {
+                    ret = v_secure_system(TEMP_DOWNLOAD_LOCATION"/usr/ccsp/advsec/start_adv_security.sh -restartAgent WANIfnameChanged &");
+                    if(ret != 0)
+                    {
+                          CcspTraceWarning(("Failure in executing command via v_secure_system. ret val: %d \n", ret));
+                    }
+                }
+                rc = strcpy_s(prevWanIfname, sizeof(prevWanIfname), val);
+                ERR_CHK(rc);
             }
-
         }
     }
 
