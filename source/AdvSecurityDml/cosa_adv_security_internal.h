@@ -32,6 +32,7 @@
 #define ADVSEC_LogLevel_INFO 3
 #define ADVSEC_LogLevel_VERBOSE 4
 #define BUFLEN_1024 1024
+#define PARTNER_REDIRECTORURL_PARAMNAME  "Device.DeviceInfo.X_RDKCENTRAL-COM_Syndication.AdvsecRedirectorURL"
 
 typedef enum {
     ADVSEC_SAFEBROWSING=0,

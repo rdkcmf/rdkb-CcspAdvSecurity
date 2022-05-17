@@ -104,7 +104,8 @@ static char *g_AdvSecuritySBEnabled       = "Advsecurity_SafeBrowsing";
 static char *g_AdvSecuritySFEnabled       = "Advsecurity_Softflowd";
 static char *g_DeviceFingerPrintLogginPeriod = "Advsecurity_LoggingPeriod";
 static char *g_DeviceFingerPrintLogLevel = "Advsecurity_LogLevel";
-static char *g_DeviceFingerPrintEndpointURL = "Advsecurity_EndpointURL";
+static char *g_AdvSecCustomEndpointURL = "Advsecurity_CustomEndpointURL";
+static char *g_AdvSecDefaultEndpointURL = "Advsecurity_DefaultEndpointURL";
 static char *g_AdvSecurityLookupTimeout = "Advsecurity_LookupTimeout";
 static char *g_AdvParentalControl = "Adv_PCActivate";
 static char *g_PrivacyProtection = "Adv_PPActivate";
@@ -170,6 +171,44 @@ int get_advSysEvent_type_from_name(char *name, enum advSysEvent_e *type_ptr)
       }
   }
   return 0;
+}
+
+static BOOL Advsec_getPartnerBasedURL(char *url)
+{
+    ANSC_STATUS ret = ANSC_STATUS_FAILURE;
+    parameterValStruct_t    **valStructs = NULL;
+    char dstComponent[64]="eRT.com.cisco.spvtg.ccsp.pam";
+    char dstPath[64]="/com/cisco/spvtg/ccsp/pam";
+    char *paramNames[]={PARTNER_REDIRECTORURL_PARAMNAME};
+    int  valNum = 0;
+    CcspTraceInfo(("Fetching the Redirector URL based on partnerID\n"));
+
+    ret = CcspBaseIf_getParameterValues(
+            bus_handle,
+            dstComponent,
+            dstPath,
+            paramNames,
+            1,
+            &valNum,
+            &valStructs);
+
+    if(CCSP_Message_Bus_OK != ret)
+    {
+         CcspTraceError(("%s CcspBaseIf_getParameterValues %s error %lu\n", __FUNCTION__,paramNames[0],ret));
+         free_parameterValStruct_t(bus_handle, valNum, valStructs);
+         return false;
+    }
+    if(strlen(valStructs[0]->parameterValue) > 0)
+    {
+        strcpy(url,valStructs[0]->parameterValue);
+        CcspTraceInfo(("%s Returned URL for the partner = %s\n",__FUNCTION__, url));
+        return true;
+    }
+    else
+    {
+        CcspTraceError(("%s Empty URL, go with defaults\n", __FUNCTION__));
+        return false;
+    }
 }
 
 static BOOL Is_Device_Finger_Print_Enabled()
@@ -246,6 +285,60 @@ static BOOL advsec_read_from_file(char *fpath, char *str)
         return 1;
     }
     return 0;
+}
+
+ANSC_STATUS CosaGetSysCfgString(char* setting, char* pValue, PULONG pulSize )
+{
+    char buf[1024] = {0};
+    errno_t rc = -1;
+
+    if(ANSC_STATUS_SUCCESS == syscfg_get( NULL, setting, buf, sizeof(buf)))
+    {
+        rc = strcpy_s(pValue, *pulSize, buf);
+        if(rc != EOK)
+        {
+            ERR_CHK(rc);
+            return ANSC_STATUS_FAILURE;
+        }
+        *pulSize = AnscSizeOfString(pValue);
+        return ANSC_STATUS_SUCCESS;
+    }
+    else
+            return ANSC_STATUS_FAILURE;
+}
+
+ANSC_STATUS CosaSetSysCfgString( char* setting, char* pValue )
+{
+        if ((syscfg_set(NULL, setting, pValue) != 0))
+        {
+            AnscTraceWarning(("syscfg_set failed\n"));
+            return ANSC_STATUS_FAILURE;
+        }
+        else
+        {
+            if (syscfg_commit() != 0)
+            {
+                AnscTraceWarning(("setPartnerId : syscfg_commit failed\n"));
+                return ANSC_STATUS_FAILURE;
+            }
+
+            return ANSC_STATUS_SUCCESS;
+        }
+}
+
+static void Advsec_SetDefaultsUrl()
+{
+   char out_val[256] = {'\0'};
+
+   if( Advsec_getPartnerBasedURL(out_val) )
+   {
+       CosaSetSysCfgString(g_AdvSecDefaultEndpointURL, out_val);
+       CcspTraceInfo(("%s : SysCfg SetDefault AdvSec EndPointURL from AdvsecRedirectorURL DataModel\n", __FUNCTION__));
+   }
+   else
+   {
+       CcspTraceError(("%s : Unable to retrieve Advsec EndPointUrl from Advsec_getPartnerBasedURL DataModel & DefaultEndpointURL SysCfg \n", __FUNCTION__));
+   }
 }
 
 #ifdef WAN_FAILOVER_SUPPORTED
@@ -750,6 +843,8 @@ CosaSecurityInitialize
     g_pAdvSecAgent->pRabid->uMacCacheSize = ValueRMCS;
     g_pAdvSecAgent->pRabid->uDNSCacheSize = ValueRDCS;
 
+    Advsec_SetDefaultsUrl();
+
     if(Value == 1)
     {
         returnStatus = CosaAdvSecInit();
@@ -850,45 +945,6 @@ ANSC_STATUS CosaSetSysCfgUlong(char* setting, ULONG value)
     }
 
     return ret;
-}
-
-ANSC_STATUS CosaGetSysCfgString(char* setting, char* pValue, PULONG pulSize )
-{
-    char buf[1024] = {0};
-    errno_t rc = -1;
-
-    if(ANSC_STATUS_SUCCESS == syscfg_get( NULL, setting, buf, sizeof(buf)))
-    {
-        rc = strcpy_s(pValue, *pulSize, buf);
-        if(rc != EOK)
-        {
-            ERR_CHK(rc);
-            return ANSC_STATUS_FAILURE;
-        }
-        *pulSize = AnscSizeOfString(pValue);
-        return ANSC_STATUS_SUCCESS;
-    }
-    else
-            return ANSC_STATUS_FAILURE;
-}
-
-ANSC_STATUS CosaSetSysCfgString( char* setting, char* pValue )
-{
-        if ((syscfg_set(NULL, setting, pValue) != 0))
-        {
-            AnscTraceWarning(("syscfg_set failed\n"));
-            return ANSC_STATUS_FAILURE;
-        }
-        else
-        {
-            if (syscfg_commit() != 0)
-            {
-                AnscTraceWarning(("setPartnerId : syscfg_commit failed\n"));
-                return ANSC_STATUS_FAILURE;
-            }
-
-            return ANSC_STATUS_SUCCESS;
-        }
 }
 
 ANSC_STATUS CosaAdvSecInit()
@@ -1452,14 +1508,14 @@ ANSC_STATUS CosaAdvSecGetLookupTimeout()
 ANSC_STATUS CosaAdvSecSetCustomURL(char* pString)
 {
     ANSC_STATUS  returnStatus = ANSC_STATUS_SUCCESS;
-    returnStatus = CosaSetSysCfgString(g_DeviceFingerPrintEndpointURL, pString);
+    returnStatus = CosaSetSysCfgString(g_AdvSecCustomEndpointURL, pString);
     return returnStatus;
 }
 
 ANSC_STATUS CosaAdvSecGetCustomURL(char* pValue, PULONG pUlSize)
 {
     ANSC_STATUS  returnStatus = ANSC_STATUS_SUCCESS;
-    returnStatus = CosaGetSysCfgString(g_DeviceFingerPrintEndpointURL, pValue, pUlSize);
+    returnStatus = CosaGetSysCfgString(g_AdvSecCustomEndpointURL, pValue, pUlSize);
     return returnStatus;
 }
 
