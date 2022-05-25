@@ -112,26 +112,17 @@ then
 
     rm $ADVSEC_INITIALIZING
 
-    do_firewall_restart
+    do_firewall_restart "wait"
 
     if [ -f $ADVSEC_RAPTR_ENABLED_PATH ]; then
-        retries=180;
-        retries_before_restart=60;
-        while [ ${retries} -gt 0 ]; do
-            if raptr -q check; then
-                echo_t "Rules are loaded correctly" >> ${ADVSEC_AGENT_LOG_PATH}
-                break
-            fi
-            echo_t "Waiting for Cujo iptables rules..." >> ${ADVSEC_AGENT_LOG_PATH}
-            sleep 1
-            retries=$((retries--))
-            if [ "$(( retries % retries_before_restart ))" -eq 0 ]; then
-                do_firewall_restart
-            fi
-        done
-
-        if [ ${retries} -eq 0 ]; then
-            echo_t "Failed to load rules correctly" >> ${ADVSEC_AGENT_LOG_PATH}
+        # raptr [-q] option is broken in v2021-Q3-C release and it's been fixed in v2021-Q4-C release.
+        # In worstcase scenario, if [-q] option fails in future CUJO integration,
+        # To avoid flooding of logs in ConsoleLog.txt, we have re-directed stderr output
+        # from 'raptr check' to /rdklogs/logs/agent.txt
+        if raptr -q check 2>> ${ADVSEC_AGENT_LOG_PATH}; then
+            echo_t "Rules are loaded correctly" >> ${ADVSEC_AGENT_LOG_PATH}
+        else
+            do_firewall_restart "wait"
         fi
     else
         if [ "$ADV_PC_ENABLED" = "1" ] && [ ! -e ${ADV_PARENTAL_CONTROL_RFC_DISABLED_PATH} ]; then
@@ -143,7 +134,7 @@ then
             ip4=`iptables-save | grep CUJO | wc -l`
             ip6=`ip6tables-save | grep CUJO | wc -l`
             if [ ${ipt4} != ${ip4} ] || [ ${ipt6} != ${ip6} ]; then
-                do_firewall_restart
+                do_firewall_restart "wait"
             else
                 echo_t "Rules are loaded correctly" >> ${ADVSEC_AGENT_LOG_PATH}
             fi
@@ -437,6 +428,36 @@ do_firewall_restart()
     fi
     echo_t "${CUJO_AGENT_LOG} triggering firewall restart..." >> ${ADVSEC_AGENT_LOG_PATH}
     sysevent set firewall-restart
+
+    if [ "$1" = "wait" ]; then
+        fw_retries=10
+        while [ ${fw_retries} -gt 0 ]; do
+            fw_stat=`sysevent get firewall-status`
+            if [ "${fw_stat}" = "starting" ]; then
+                echo_t "starting firewall" >> ${ADVSEC_AGENT_LOG_PATH}
+                break
+            else
+                usleep 100000
+                fw_retries=$((fw_retries--))
+            fi
+        done
+
+        fw_retries=20
+        while [ ${fw_retries} -gt 0 ]; do
+            fw_stat=`sysevent get firewall-status`
+            if [ "${fw_stat}" = "started" ]; then
+                break
+            else
+                usleep 100000
+                fw_retries=$((fw_retries--))
+            fi
+        done
+        if [ "${fw_stat}" = "started" ]; then
+            echo_t "firewall restart success" >> ${ADVSEC_AGENT_LOG_PATH}
+        else
+            echo_t "firewall-status: ${fw_stat} firewall restart failed" >> ${ADVSEC_AGENT_LOG_PATH}
+        fi
+    fi
 }
 
 if [ "$1" = "-enable" ] || [ "$1" = "-disable" ]
