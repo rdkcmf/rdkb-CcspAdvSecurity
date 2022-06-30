@@ -141,7 +141,7 @@ log_agent_mem_statistics()
 	echo_t "NFLua memory usage:${nflua_rss}" >> $ADVSEC_AGENT_LOG_PATH
 
 	if [ "${nflua_rss}" -ge "${MAX_RSS_THRESHOLD}" ]; then
-		advsec_restart_rabid "NfluaHighRSS"
+		advsec_restart_agent "NfluaHighRSS"
 		exit
 	fi
 }

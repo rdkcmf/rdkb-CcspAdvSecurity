@@ -60,6 +60,7 @@ export ADV_PARENTAL_CONTROL_NUMBER_OF_ACTIVE_MACS_PRINT=ADV_PARENTAL_CONTROL_NUM
 export ADVSEC_INITIALIZING=/tmp/advsec_initializing
 export ADVSEC_INITIALIZED=/tmp/advsec_initialized
 export ADVSEC_AGENT_SHUTDOWN=/tmp/advsec_agent_shutdown
+export ADVSEC_AGENT_SHUTDOWN_COMPLETE=/tmp/advsec_agent_shutdown_complete
 export ADVSEC_DF_ENABLED_PATH=/tmp/advsec_df_enabled
 export ADV_PARENTAL_CONTROL_PATH=/tmp/adv_parental_control
 export PRIVACY_PROTECTION_PATH=/tmp/adv_privacy_protection
