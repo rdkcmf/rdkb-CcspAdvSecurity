@@ -222,7 +222,7 @@ advsec_agent_stop_sf()
 
 start_adv_parental_control()
 {
-    if [ "$MODEL_NUM" = "TG1682G" ] || [ "$MODEL_NUM" = "DPC3941" ] || [ "$MODEL_NUM" = "TG3482G" ] || [ "$MODEL_NUM" = "TG4482A" ]; then
+    if [ "$MODEL_NUM" = "TG1682G" ] || [ "$MODEL_NUM" = "DPC3941" ] || [ "$MODEL_NUM" = "TG3482G" ] || [ "$MODEL_NUM" = "TG4482A" ] || [ "$MODEL_NUM" = "SR203" ]; then
         sysctl -w net.netfilter.nf_conntrack_acct=1
     fi
 
@@ -232,7 +232,7 @@ start_adv_parental_control()
 
 stop_adv_parental_control()
 {
-    if [ "$MODEL_NUM" = "TG1682G" ] || [ "$MODEL_NUM" = "DPC3941" ] || [ "$MODEL_NUM" = "TG3482G" ] || [ "$MODEL_NUM" = "TG4482A" ]; then
+    if [ "$MODEL_NUM" = "TG1682G" ] || [ "$MODEL_NUM" = "DPC3941" ] || [ "$MODEL_NUM" = "TG3482G" ] || [ "$MODEL_NUM" = "TG4482A" ] || [ "$MODEL_NUM" = "SR203" ]; then
         sysctl -w net.netfilter.nf_conntrack_acct=0
     fi
     if [ -e ${ADV_PARENTAL_CONTROL_PATH} ];then
