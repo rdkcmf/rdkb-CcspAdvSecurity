@@ -592,6 +592,7 @@ fi
 if [ "$1" = "-restartAgent" ] && [ -e ${ADVSEC_DF_ENABLED_PATH} ]
 then
     advsec_restart_agent $2
+    do_firewall_restart "wait"
 fi
 
 if [ "$1" = "-agentloglevel" ]; then
