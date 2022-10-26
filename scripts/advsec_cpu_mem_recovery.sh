@@ -130,6 +130,23 @@ log_agent_mem_statistics()
 			exit
 		fi
 	fi
+
+	tracer_interval=`${RUNTIME_DIR}/bin/${CUJO_AGENT_SH} -e 'return cujo.config.tracer_interval'`
+	if [ "x${tracer_interval}" = "x" ]; then
+		${RUNTIME_DIR}/bin/${CUJO_AGENT_SH} -e 'cujo.nf.dostring([[print("nfluamem:"..collectgarbage("count"))]])'
+		nflua_rss=`dmesg | grep nfluamem: | tail -1 | cut -d':' -f2`
+		if [ "${nflua_rss}" = "" ]; then
+			nflua_rss=0
+		fi
+		# nflua_rss is in bytes
+		nflua_rss=$((${nflua_rss} / $KB))
+		echo_t "NFLua memory usage:${nflua_rss}" >> $ADVSEC_AGENT_LOG_PATH
+
+		if [ "${nflua_rss}" -ge "${MAX_RSS_THRESHOLD}" ]; then
+			advsec_restart_agent "NfluaHighRSS"
+			exit
+		fi
+	fi
 }
 
 get_agent_pid_list
